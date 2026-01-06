@@ -24,14 +24,23 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path;
 
   const handleLogout = async () => {
+    setIsOpen(false);
+    setUserMenuOpen(false);
+    
     try {
+      // Clear localStorage immediately
+      localStorage.removeItem('adminUser');
+      
+      // Call logout function
       await logout();
-      navigate('/');
-      setIsOpen(false);
-      setUserMenuOpen(false);
     } catch (error) {
       console.error('Error logging out:', error);
+      // Still clear localStorage even on error
+      localStorage.removeItem('adminUser');
     }
+    
+    // Force full page reload to ensure clean state
+    window.location.href = '/';
   };
 
   // Close user menu when clicking outside
@@ -112,7 +121,7 @@ const Navbar = () => {
                         <p className="text-xs text-gray-500 mt-1">Administrator</p>
                       )}
                     </div>
-                    {currentUser.isAdmin && (
+                    {currentUser.isAdmin ? (
                       <Link
                         to="/admin/dashboard"
                         onClick={() => setUserMenuOpen(false)}
@@ -120,14 +129,15 @@ const Navbar = () => {
                       >
                         Admin Dashboard
                       </Link>
+                    ) : (
+                      <Link
+                        to="/user/dashboard"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-undp-light-grey transition-colors"
+                      >
+                        My Dashboard
+                      </Link>
                     )}
-                    <Link
-                      to="/user/dashboard"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-undp-light-grey transition-colors"
-                    >
-                      My Dashboard
-                    </Link>
                     <button
                       onClick={handleLogout}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-undp-light-grey transition-colors flex items-center space-x-2"
@@ -189,7 +199,7 @@ const Navbar = () => {
                     </div>
                   </div>
                 </div>
-                {currentUser.isAdmin && (
+                {currentUser.isAdmin ? (
                   <Link
                     to="/admin/dashboard"
                     onClick={() => setIsOpen(false)}
@@ -197,14 +207,15 @@ const Navbar = () => {
                   >
                     Admin Dashboard
                   </Link>
+                ) : (
+                  <Link
+                    to="/user/dashboard"
+                    onClick={() => setIsOpen(false)}
+                    className="block px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 hover:bg-undp-light-grey"
+                  >
+                    My Dashboard
+                  </Link>
                 )}
-                <Link
-                  to="/user/dashboard"
-                  onClick={() => setIsOpen(false)}
-                  className="block px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 hover:bg-undp-light-grey"
-                >
-                  My Dashboard
-                </Link>
                 <button
                   onClick={handleLogout}
                   className="block btn-primary text-center w-full mt-3 text-sm py-2 flex items-center justify-center space-x-2"

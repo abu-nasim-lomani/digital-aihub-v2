@@ -90,17 +90,32 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    // Clear admin session
-    localStorage.removeItem('adminUser');
-    
-    // Logout from Supabase if it's a regular user
-    if (currentUser && !currentUser.isAdmin) {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+    try {
+      // Clear admin session first
+      localStorage.removeItem('adminUser');
+      
+      // Clear user state immediately
+      setCurrentUser(null);
+      
+      // Always sign out from Supabase to clear any session
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.warn('Supabase signOut error:', error);
+        }
+      } catch (supabaseError) {
+        console.warn('Supabase signOut exception:', supabaseError);
+        // Continue with logout even if Supabase signOut fails
+      }
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state even if there's an error
+      localStorage.removeItem('adminUser');
+      setCurrentUser(null);
+      return Promise.resolve(); // Don't throw, ensure logout completes
     }
-    
-    setCurrentUser(null);
-    return Promise.resolve();
   };
 
   const signup = async (email, password) => {
