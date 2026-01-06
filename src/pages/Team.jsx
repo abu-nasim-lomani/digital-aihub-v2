@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchCollection } from '../utils/supabaseHelpers';
-import { Mail, Linkedin, User } from 'lucide-react';
+import { Mail, Linkedin, User, MessageSquare } from 'lucide-react';
 import SkeletonLoader from '../components/SkeletonLoader';
 
 const Team = () => {
@@ -113,6 +113,88 @@ const Team = () => {
       </div>
 
       <div className="section-container py-12">
+        {/* Message Section */}
+        <section className="mb-16">
+          <div className="flex items-center space-x-3 mb-8">
+            <div className="w-12 h-12 bg-undp-blue rounded-lg flex items-center justify-center">
+              <MessageSquare className="text-white" size={24} />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue">Message</h2>
+          </div>
+          
+          <div className="max-w-4xl mx-auto">
+            <div className="card bg-gradient-to-br from-undp-light-grey to-white p-6 sm:p-8 lg:p-10">
+              <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+                <div className="flex-shrink-0">
+                  <img
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzmekLN0RLLu70esAjL7PFsjMhGp0ba9cPOQ&s"
+                    alt="Stefan Liller"
+                    className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-undp-blue mx-auto md:mx-0"
+                  />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl sm:text-2xl font-bold text-undp-blue mb-2">
+                    Stefan Liller
+                  </h3>
+                  <p className="text-lg text-gray-700 mb-4 font-semibold">
+                    Resident Representative
+                  </p>
+                  <div className="prose max-w-none">
+                    <p className="text-gray-700 leading-relaxed mb-4">
+                      Welcome to the UNDP Digital & AI Hub. As we navigate an era of unprecedented technological transformation, digital innovation has become central to achieving sustainable development goals and creating lasting impact in communities across Bangladesh.
+                    </p>
+                    <p className="text-gray-700 leading-relaxed mb-4">
+                      Our Digital & AI Hub represents UNDP's commitment to harnessing the power of technology for people-centered development. Through strategic initiatives, capacity building, and innovative solutions, we are working to ensure that digital transformation serves humanity and contributes to a more equitable, sustainable future.
+                    </p>
+                    <p className="text-gray-700 leading-relaxed">
+                      I am proud of our dedicated team of experts who are driving this transformation forward. Together, we are building digital public infrastructure, fostering innovation, and empowering communities to thrive in the digital age. Thank you for joining us on this journey.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Message Section - Sonali Dayaratne */}
+        <section className="mb-16">
+          <div className="max-w-4xl mx-auto">
+            <div className="card bg-gradient-to-br from-white to-undp-light-grey p-6 sm:p-8 lg:p-10">
+              <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+                <div className="flex-shrink-0">
+                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-undp-blue mx-auto md:mx-0 overflow-hidden">
+                    <img
+                      src="https://www.undp.org/sites/g/files/zskgke326/files/styles/bio_card_medium/public/2023-08/undp_bd_drr_new_01.jpg?h=5d4d2577&itok=WgG6Depq"
+                      alt="Sonali Dayaratne"
+                      className="w-full h-full object-cover"
+                      style={{ objectPosition: '50% 0%' }}
+                    />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl sm:text-2xl font-bold text-undp-blue mb-2">
+                    Sonali Dayaratne
+                  </h3>
+                  <p className="text-lg text-gray-700 mb-4 font-semibold">
+                    Deputy Resident Representative
+                  </p>
+                  <div className="prose max-w-none">
+                    <p className="text-gray-700 leading-relaxed mb-4">
+                      In today's rapidly evolving digital landscape, the UNDP Digital & AI Hub stands as a beacon of innovation and collaboration. Our mission extends beyond technology adoption—we are building bridges between digital solutions and sustainable development outcomes that truly matter to the people we serve.
+                    </p>
+                    <p className="text-gray-700 leading-relaxed mb-4">
+                      As Deputy Resident Representative, I am inspired by the transformative potential of our initiatives. From capacity building programs that empower local communities to innovative projects that leverage artificial intelligence for social good, we are creating pathways for inclusive digital transformation across Bangladesh.
+                    </p>
+                    <p className="text-gray-700 leading-relaxed">
+                      The success of our Digital & AI Hub lies in the collaborative spirit of our team and partners. Together, we are ensuring that digital innovation becomes a powerful tool for advancing the Sustainable Development Goals, leaving no one behind in our journey toward a more connected, empowered, and resilient future.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Team Section */}
         <section className="mb-16">
           <div className="flex items-center space-x-3 mb-8">
