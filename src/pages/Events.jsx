@@ -16,6 +16,7 @@ const Events = () => {
   const [archivedEvents, setArchivedEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventView, setEventView] = useState('upcoming'); // 'upcoming', 'archived'
+  const [selectedYear, setSelectedYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showArchiveForm, setShowArchiveForm] = useState(false);
@@ -158,6 +159,45 @@ const Events = () => {
     fetchEvents();
   }, []);
 
+  // Extract year from event date and group archived events by year
+  const getYearFromDate = (dateString) => {
+    if (!dateString) return null;
+    try {
+      const date = dateString?.toDate ? dateString.toDate() : new Date(dateString);
+      return date.getFullYear();
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // Group archived events by year
+  const archivedEventsByYear = archivedEvents.reduce((acc, event) => {
+    const year = getYearFromDate(event.date);
+    if (year) {
+      if (!acc[year]) {
+        acc[year] = [];
+      }
+      acc[year].push(event);
+    }
+    return acc;
+  }, {});
+
+  // Always include these years: 2026, 2025, 2024, 2023
+  const requiredYears = [2026, 2025, 2024, 2023];
+  
+  // Get years from archived events
+  const yearsFromArchivedEvents = Object.keys(archivedEventsByYear)
+    .map(Number)
+    .sort((a, b) => b - a); // Descending order
+  
+  // Combine required years with years from archived events, remove duplicates, and sort descending
+  const availableYears = [...new Set([...requiredYears, ...yearsFromArchivedEvents])]
+    .sort((a, b) => b - a);
+
+  // Filter archived events by selected year
+  const filteredArchivedEvents = selectedYear 
+    ? (archivedEventsByYear[selectedYear] || [])
+    : [];
 
   const formatDate = (date) => {
     if (!date) return 'Date TBA';
@@ -493,118 +533,45 @@ const Events = () => {
         </div>
       </div>
 
-      {/* Add Event Buttons - Always at Top */}
-      <section className="section-container py-6">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-          {!showArchiveForm && (
+      {/* Add Event Buttons - Admin Only */}
+      {currentUser?.isAdmin && (
+        <section className="section-container py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <button
               onClick={() => {
                 if (requireAuth('add archive events')) {
                   setShowArchiveForm(true);
+                  setShowForm(false); // Close other form if open
                 }
               }}
-              className="btn-primary inline-flex items-center justify-center space-x-2 w-full sm:w-auto py-2.5 min-h-[44px]"
+              className={`btn-primary inline-flex items-center justify-center space-x-2 w-full sm:w-auto py-2.5 min-h-[44px] ${
+                showArchiveForm ? 'bg-undp-dark-blue' : ''
+              }`}
             >
               <Plus size={20} />
               <span>Add Archive Events</span>
             </button>
-          )}
-          {!showForm && (
             <button
               onClick={() => {
                 if (requireAuth('add a new event')) {
                   setShowForm(true);
+                  setShowArchiveForm(false); // Close other form if open
                 }
               }}
-              className="btn-primary inline-flex items-center justify-center space-x-2 w-full sm:w-auto py-2.5 min-h-[44px]"
+              className={`btn-primary inline-flex items-center justify-center space-x-2 w-full sm:w-auto py-2.5 min-h-[44px] ${
+                showForm ? 'bg-undp-dark-blue' : ''
+              }`}
             >
               <Plus size={20} />
               <span>Add New Events</span>
             </button>
-          )}
-        </div>
-      </section>
-
-      {/* Filter Buttons */}
-      <section className="section-container py-8">
-        <div className="flex flex-wrap gap-4 justify-center mb-8">
-          <button
-            type="button"
-            onClick={() => setEventView('upcoming')}
-            className={`px-6 py-3 rounded-full font-semibold transition-colors ${
-              eventView === 'upcoming'
-                ? 'bg-undp-blue text-white'
-                : 'bg-undp-light-grey text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            View Upcoming Events
-          </button>
-          <button
-            type="button"
-            onClick={() => setEventView('archived')}
-            className={`px-6 py-3 rounded-full font-semibold transition-colors ${
-              eventView === 'archived'
-                ? 'bg-undp-blue text-white'
-                : 'bg-undp-light-grey text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            View Archived Events
-          </button>
-        </div>
-      </section>
-
-      {/* Upcoming Events */}
-      {eventView === 'upcoming' && (upcomingEvents.length > 0 || loading) && (
-        <section className="section-container py-12">
-          <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue mb-6 sm:mb-8">Upcoming Event{upcomingEvents.length > 1 ? 's' : ''}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {loading && upcomingEvents.length === 0 ? (
-              <SkeletonLoader type="card" count={3} />
-            ) : upcomingEvents.length > 0 ? (
-              upcomingEvents.map((event) => {
-                const daysUntil = getDaysUntil(event.date);
-                return (
-                  <div key={event.id} className="card border-l-4 border-undp-blue">
-                    {daysUntil !== null && daysUntil > 0 && (
-                      <div className="mb-4">
-                        <div className="bg-undp-blue text-white px-4 py-2 rounded-lg text-center">
-                          <div className="text-2xl font-bold">{daysUntil}</div>
-                          <div className="text-sm">Days Until Event</div>
-                        </div>
-                      </div>
-                    )}
-                    <h3 className="text-xl font-bold text-undp-blue mb-2">{event.title}</h3>
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-gray-600">
-                        <Calendar size={16} className="mr-2" />
-                        <span>{formatDate(event.date)}</span>
-                      </div>
-                      {event.location && (
-                        <div className="flex items-center text-gray-600">
-                          <MapPin size={16} className="mr-2" />
-                          <span>{event.location}</span>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-gray-600 mb-4 line-clamp-3">{event.description}</p>
-                    <button
-                      onClick={() => setSelectedEvent(event)}
-                      className="btn-primary w-full"
-                    >
-                      View Details
-                    </button>
-                  </div>
-                );
-              })
-            ) : null}
           </div>
         </section>
       )}
 
-      {/* Archive Section */}
-      <section className="bg-undp-light-grey py-12">
-        <div className="section-container">
-
+      {/* Event Forms Section - Admin Only */}
+      {currentUser?.isAdmin && (showForm || showArchiveForm) && (
+        <section className="section-container py-8">
           {/* Submission Form for Archive Events */}
           {showArchiveForm && (
             <div className="max-w-3xl mx-auto card mb-8">
@@ -622,6 +589,7 @@ const Events = () => {
                       location: '',
                       videoUrls: [],
                       galleryImages: [],
+                      documents: [],
                     });
                     setArchiveSubmitSuccess(false);
                   }}
@@ -887,7 +855,7 @@ const Events = () => {
             </div>
           )}
 
-          {/* Submission Form for New Events (in Archive Section) */}
+          {/* Submission Form for New Events */}
           {showForm && (
             <div className="max-w-3xl mx-auto card mb-8">
               <div className="flex items-center justify-between mb-4">
@@ -904,6 +872,7 @@ const Events = () => {
                       location: '',
                       videoUrls: [],
                       galleryImages: [],
+                      documents: [],
                     });
                     setSubmitSuccess(false);
                   }}
@@ -1168,59 +1137,215 @@ const Events = () => {
               </form>
             </div>
           )}
+        </section>
+      )}
+
+      {/* Filter Buttons */}
+      <section className="section-container py-8">
+        <div className="flex flex-wrap gap-4 justify-center mb-8">
+          <button
+            type="button"
+            onClick={() => {
+              setEventView('upcoming');
+              setSelectedYear(null);
+            }}
+            className={`px-6 py-3 rounded-full font-semibold transition-colors ${
+              eventView === 'upcoming'
+                ? 'bg-undp-blue text-white'
+                : 'bg-undp-light-grey text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            View Upcoming Events
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEventView('archived');
+              setSelectedYear(null);
+            }}
+            className={`px-6 py-3 rounded-full font-semibold transition-colors ${
+              eventView === 'archived'
+                ? 'bg-undp-blue text-white'
+                : 'bg-undp-light-grey text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            View Archived Events
+          </button>
+        </div>
+      </section>
+
+      {/* Upcoming Events */}
+      {eventView === 'upcoming' && (upcomingEvents.length > 0 || loading) && (
+        <section className="section-container py-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue mb-6 sm:mb-8">Upcoming Event{upcomingEvents.length > 1 ? 's' : ''}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {loading && upcomingEvents.length === 0 ? (
+              <SkeletonLoader type="card" count={3} />
+            ) : upcomingEvents.length > 0 ? (
+              upcomingEvents.map((event) => {
+                const daysUntil = getDaysUntil(event.date);
+                return (
+                  <div key={event.id} className="card border-l-4 border-undp-blue">
+                    {daysUntil !== null && daysUntil > 0 && (
+                      <div className="mb-4">
+                        <div className="bg-undp-blue text-white px-4 py-2 rounded-lg text-center">
+                          <div className="text-2xl font-bold">{daysUntil}</div>
+                          <div className="text-sm">Days Until Event</div>
+                        </div>
+                      </div>
+                    )}
+                    <h3 className="text-xl font-bold text-undp-blue mb-2">{event.title}</h3>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-gray-600">
+                        <Calendar size={16} className="mr-2" />
+                        <span>{formatDate(event.date)}</span>
+                      </div>
+                      {event.location && (
+                        <div className="flex items-center text-gray-600">
+                          <MapPin size={16} className="mr-2" />
+                          <span>{event.location}</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-gray-600 mb-4 line-clamp-3">{event.description}</p>
+                    <button
+                      onClick={() => setSelectedEvent(event)}
+                      className="btn-primary w-full"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                );
+              })
+            ) : null}
+          </div>
+        </section>
+      )}
+
+      {/* Archive Section */}
+      <section className="bg-undp-light-grey py-12">
+        <div className="section-container">
 
           {/* Archived Events List */}
           {eventView === 'archived' && (
             <>
-              {eventView === 'archived' && (
-                <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue mb-6 sm:mb-8">Archived Events</h2>
-              )}
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {loading && archivedEvents.length === 0 ? (
-                  <SkeletonLoader type="card" count={6} />
-                ) : archivedEvents.length > 0 ? (
-                  archivedEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="card cursor-pointer hover:shadow-xl transition-shadow"
-                  onClick={() => setSelectedEvent(event)}
-                >
-                  <h3 className="text-lg font-bold text-undp-blue mb-2">{event.title}</h3>
-                  <div className="flex items-center text-gray-600 mb-2">
-                    <Calendar size={14} className="mr-2" />
-                    <span className="text-sm">{formatDate(event.date)}</span>
+              {/* Year Selection Prompt */}
+              {!selectedYear && availableYears.length > 0 && (
+                <div className="text-center py-12">
+                  <p className="text-gray-600 text-lg mb-4">Select a year to view archived events</p>
+                  <div className="flex flex-wrap justify-center gap-4">
+                    {availableYears.map((year) => (
+                      <button
+                        key={year}
+                        onClick={() => setSelectedYear(year)}
+                        className="px-8 py-3 rounded-lg font-semibold bg-undp-blue text-white hover:bg-undp-dark-blue transition-colors text-lg"
+                      >
+                        {year}
+                      </button>
+                    ))}
                   </div>
-                  <p className="text-gray-600 text-sm line-clamp-2">{event.description}</p>
-                  {(event.galleryImages?.length > 0 || event.videoUrls?.length > 0 || event.videoUrl || event.documents?.length > 0) && (
-                    <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
-                      {event.galleryImages?.length > 0 && (
-                        <span className="flex items-center">
-                          <ImageIcon size={14} className="mr-1" />
-                          {event.galleryImages.length} photos
-                        </span>
-                      )}
-                      {(event.videoUrls?.length > 0 || event.videoUrl) && (
-                        <span className="flex items-center">
-                          <Video size={14} className="mr-1" />
-                          {event.videoUrls?.length || 1} video{event.videoUrls?.length > 1 ? 's' : ''} available
-                        </span>
-                      )}
-                      {event.documents?.length > 0 && (
-                        <span className="flex items-center">
-                          <FileText size={14} className="mr-1" />
-                          {event.documents.length} document{event.documents.length > 1 ? 's' : ''}
-                        </span>
-                      )}
+                </div>
+              )}
+
+              {/* Archived Events List by Year */}
+              {selectedYear && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-undp-blue">Archived Events for {selectedYear}</h3>
+                    <button
+                      onClick={() => setSelectedYear(null)}
+                      className="btn-secondary"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                  
+                  {loading && filteredArchivedEvents.length === 0 ? (
+                    <SkeletonLoader type="card" count={6} />
+                  ) : filteredArchivedEvents.length > 0 ? (
+                    <div className="space-y-4">
+                      {filteredArchivedEvents.map((event, index) => (
+                        <div
+                          key={event.id}
+                          className="card group cursor-pointer hover:shadow-lg transition-shadow duration-200"
+                          onClick={() => setSelectedEvent(event)}
+                        >
+                          <div className="flex flex-col md:flex-row gap-4">
+                            {/* Serial Number */}
+                            <div className="flex-shrink-0 flex items-center justify-center md:items-start">
+                              <div className="w-12 h-12 rounded-full bg-undp-blue text-white flex items-center justify-center font-bold text-lg">
+                                {index + 1}
+                              </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1">
+                              <h3 className="text-xl font-bold text-undp-blue mb-2">{event.title}</h3>
+                              <div className="flex items-center text-gray-600 mb-2">
+                                <Calendar size={16} className="mr-2" />
+                                <span>{formatDate(event.date)}</span>
+                              </div>
+                              {event.location && (
+                                <div className="flex items-center text-gray-600 mb-2">
+                                  <MapPin size={16} className="mr-2" />
+                                  <span>{event.location}</span>
+                                </div>
+                              )}
+                              {event.description && (
+                                <p className="text-gray-600 mb-4">{event.description}</p>
+                              )}
+                              
+                              {(event.galleryImages?.length > 0 || event.videoUrls?.length > 0 || event.videoUrl || event.documents?.length > 0) && (
+                                <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                  {event.galleryImages?.length > 0 && (
+                                    <span className="flex items-center">
+                                      <ImageIcon size={14} className="mr-1" />
+                                      {event.galleryImages.length} photos
+                                    </span>
+                                  )}
+                                  {(event.videoUrls?.length > 0 || event.videoUrl) && (
+                                    <span className="flex items-center">
+                                      <Video size={14} className="mr-1" />
+                                      {event.videoUrls?.length || 1} video{event.videoUrls?.length > 1 ? 's' : ''} available
+                                    </span>
+                                  )}
+                                  {event.documents?.length > 0 && (
+                                    <span className="flex items-center">
+                                      <FileText size={14} className="mr-1" />
+                                      {event.documents.length} document{event.documents.length > 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedEvent(event);
+                                }}
+                                className="btn-primary inline-flex items-center space-x-2 mt-4"
+                              >
+                                <span>View Details</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500 text-lg">No archived events found for {selectedYear}.</p>
                     </div>
                   )}
                 </div>
-              ))
-                ) : (
-                  <div className="col-span-full text-center py-12">
-                    <p className="text-gray-500">No archived events found.</p>
-                  </div>
-                )}
-              </div>
+              )}
+
+              {/* Show message if no years available */}
+              {!loading && availableYears.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg">No archived events found.</p>
+                </div>
+              )}
             </>
           )}
         </div>

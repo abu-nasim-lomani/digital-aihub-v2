@@ -1,63 +1,56 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabase/config';
-import { FileText, Calendar, BookOpen, Target, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const UserDashboard = () => {
   const { currentUser } = useAuth();
-  const [submissions, setSubmissions] = useState({
-    initiatives: [],
-    projects: [],
-    events: [],
-    standards: [],
-  });
+  const [supportRequests, setSupportRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
     approved: 0,
-    rejected: 0,
+    declined: 0,
   });
 
   useEffect(() => {
     if (currentUser && currentUser.email) {
-      fetchUserSubmissions();
+      fetchSupportRequests();
     }
   }, [currentUser]);
 
-  const fetchUserSubmissions = async () => {
+  const fetchSupportRequests = async () => {
     try {
       setLoading(true);
       const userEmail = currentUser.email;
 
-      // Fetch all submissions from Supabase filtered by created_by
-      const [initiativesResult, projectsResult, eventsResult, standardsResult] = await Promise.all([
-        supabase.from('initiatives').select('*').eq('created_by', userEmail).order('created_at', { ascending: false }),
-        supabase.from('projects').select('*').eq('created_by', userEmail).order('created_at', { ascending: false }),
-        supabase.from('events').select('*').eq('created_by', userEmail).order('created_at', { ascending: false }),
-        supabase.from('standards').select('*').eq('created_by', userEmail).order('created_at', { ascending: false }),
-      ]);
+      // Fetch only support requests from Supabase filtered by created_by
+      const { data, error } = await supabase
+        .from('support_requests')
+        .select('*')
+        .eq('created_by', userEmail)
+        .order('created_at', { ascending: false });
 
-      // Extract data from results (handle errors gracefully)
-      const initiatives = initiativesResult.data || [];
-      const projects = projectsResult.data || [];
-      const events = eventsResult.data || [];
-      const standards = standardsResult.data || [];
+      if (error) {
+        console.error('Error fetching support requests:', error);
+        setSupportRequests([]);
+      } else {
+        setSupportRequests(data || []);
 
-      setSubmissions({ initiatives, projects, events, standards });
-
-      // Calculate stats
-      const allSubmissions = [...initiatives, ...projects, ...events, ...standards];
-      const stats = {
-        total: allSubmissions.length,
-        pending: allSubmissions.filter(s => s.status === 'pending').length,
-        approved: allSubmissions.filter(s => s.status === 'published' || s.status === 'approved').length,
-        rejected: allSubmissions.filter(s => s.status === 'rejected').length,
-      };
-      setStats(stats);
+        // Calculate stats
+        const stats = {
+          total: (data || []).length,
+          pending: (data || []).filter(s => s.status === 'pending').length,
+          approved: (data || []).filter(s => s.status === 'approved').length,
+          declined: (data || []).filter(s => s.status === 'declined').length,
+        };
+        setStats(stats);
+      }
     } catch (error) {
-      console.error('Error fetching user submissions:', error);
+      console.error('Error fetching support requests:', error);
+      setSupportRequests([]);
     } finally {
       setLoading(false);
     }
@@ -65,7 +58,6 @@ const UserDashboard = () => {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'published':
       case 'approved':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -80,11 +72,11 @@ const UserDashboard = () => {
             Pending
           </span>
         );
-      case 'rejected':
+      case 'declined':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
             <XCircle size={12} className="mr-1" />
-            Rejected
+            Declined
           </span>
         );
       default:
@@ -108,7 +100,7 @@ const UserDashboard = () => {
       <div className="bg-undp-blue text-white py-8">
         <div className="section-container">
           <h1 className="text-3xl font-bold mb-2">My Dashboard</h1>
-          <p className="text-lg opacity-90">Manage your submissions and track their status</p>
+          <p className="text-lg opacity-90">Manage your support requests and track their status</p>
         </div>
       </div>
 
@@ -124,10 +116,10 @@ const UserDashboard = () => {
               <div className="card">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Submissions</p>
+                    <p className="text-sm text-gray-600 mb-1">Total Requests</p>
                     <p className="text-3xl font-bold text-undp-blue">{stats.total}</p>
                   </div>
-                  <FileText className="text-undp-blue" size={32} />
+                  <HelpCircle className="text-undp-blue" size={32} />
                 </div>
               </div>
               <div className="card">
@@ -151,8 +143,8 @@ const UserDashboard = () => {
               <div className="card">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Rejected</p>
-                    <p className="text-3xl font-bold text-red-600">{stats.rejected}</p>
+                    <p className="text-sm text-gray-600 mb-1">Declined</p>
+                    <p className="text-3xl font-bold text-red-600">{stats.declined}</p>
                   </div>
                   <XCircle className="text-red-600" size={32} />
                 </div>
@@ -174,123 +166,32 @@ const UserDashboard = () => {
               </div>
             </div>
 
-            {/* Submissions Sections */}
-            {submissions.initiatives.length > 0 && (
+            {/* Support Requests Section */}
+            {supportRequests.length > 0 && (
               <div className="card mb-6">
                 <div className="flex items-center space-x-2 mb-4">
-                  <Target className="text-undp-blue" size={24} />
-                  <h2 className="text-xl font-bold text-undp-blue">My Initiatives</h2>
+                  <HelpCircle className="text-undp-blue" size={24} />
+                  <h2 className="text-xl font-bold text-undp-blue">My Support Requests</h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-undp-light-grey">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Title</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Submitted</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {submissions.initiatives.map((item) => (
-                        <tr key={item.id} className="hover:bg-undp-light-grey">
-                          <td className="px-4 py-3 font-medium">{item.title}</td>
-                          <td className="px-4 py-3 text-gray-600">{item.type || 'N/A'}</td>
-                          <td className="px-4 py-3 text-gray-600">{formatDate(item.created_at)}</td>
-                          <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {submissions.projects.length > 0 && (
-              <div className="card mb-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <FileText className="text-undp-blue" size={24} />
-                  <h2 className="text-xl font-bold text-undp-blue">My Projects</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-undp-light-grey">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Project Name</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Request Title</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Support Type</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Duration</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Submitted</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {submissions.projects.map((item) => (
-                        <tr key={item.id} className="hover:bg-undp-light-grey">
-                          <td className="px-4 py-3 font-medium">{item.title}</td>
-                          <td className="px-4 py-3 text-gray-600">{item.supportType || 'N/A'}</td>
-                          <td className="px-4 py-3 text-gray-600">{formatDate(item.created_at)}</td>
-                          <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {submissions.events.length > 0 && (
-              <div className="card mb-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Calendar className="text-undp-blue" size={24} />
-                  <h2 className="text-xl font-bold text-undp-blue">My Events</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-undp-light-grey">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Event Title</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Submitted</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {submissions.events.map((item) => (
-                        <tr key={item.id} className="hover:bg-undp-light-grey">
-                          <td className="px-4 py-3 font-medium">{item.title}</td>
-                          <td className="px-4 py-3 text-gray-600 capitalize">{item.type || 'N/A'}</td>
-                          <td className="px-4 py-3 text-gray-600">{formatDate(item.created_at)}</td>
-                          <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {submissions.standards.length > 0 && (
-              <div className="card mb-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <BookOpen className="text-undp-blue" size={24} />
-                  <h2 className="text-xl font-bold text-undp-blue">My Standards</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-undp-light-grey">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Title</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Category</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Submitted</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {submissions.standards.map((item) => (
-                        <tr key={item.id} className="hover:bg-undp-light-grey">
-                          <td className="px-4 py-3 font-medium">{item.title}</td>
-                          <td className="px-4 py-3 text-gray-600">{item.category || 'N/A'}</td>
-                          <td className="px-4 py-3 text-gray-600">{formatDate(item.created_at)}</td>
-                          <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
+                      {supportRequests.map((request) => (
+                        <tr key={request.id} className="hover:bg-undp-light-grey">
+                          <td className="px-4 py-3 font-medium">{request.title}</td>
+                          <td className="px-4 py-3 text-gray-600">{request.support_type || 'N/A'}</td>
+                          <td className="px-4 py-3 text-gray-600">{request.duration || 'N/A'}</td>
+                          <td className="px-4 py-3 text-gray-600">{formatDate(request.created_at)}</td>
+                          <td className="px-4 py-3">{getStatusBadge(request.status)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -302,15 +203,12 @@ const UserDashboard = () => {
             {/* Empty State */}
             {stats.total === 0 && (
               <div className="card text-center py-12">
-                <FileText className="mx-auto text-gray-400 mb-4" size={48} />
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Submissions Yet</h3>
-                <p className="text-gray-600 mb-6">Start submitting content to see it here!</p>
-                <div className="flex flex-wrap justify-center gap-4">
-                  <a href="/initiatives" className="btn-primary">Submit Initiative</a>
-                  <a href="/projects" className="btn-primary">Submit Project</a>
-                  <a href="/events" className="btn-primary">Submit Event</a>
-                  <a href="/standards" className="btn-primary">Submit Standard</a>
-                </div>
+                <HelpCircle className="mx-auto text-gray-400 mb-4" size={48} />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Support Requests Yet</h3>
+                <p className="text-gray-600 mb-6">Submit a support request to see it here!</p>
+                <a href="/projects" className="btn-primary inline-flex items-center space-x-2">
+                  <span>Submit Support Request</span>
+                </a>
               </div>
             )}
           </>

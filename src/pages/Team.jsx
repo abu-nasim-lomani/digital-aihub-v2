@@ -12,39 +12,27 @@ const Team = () => {
   const demoTeamMembers = [
     {
       id: 'team-1',
-      name: 'Dr. Sarah Johnson',
-      designation: 'Director of Digital Transformation',
-      photoUrl: 'https://i.pravatar.cc/150?img=47',
+      name: 'Sheela Tasneem Haq',
+      designation: 'Senior Governance Specialist',
+      photoUrl: '',
     },
     {
       id: 'team-2',
-      name: 'Michael Chen',
-      designation: 'Lead AI Solutions Architect',
-      photoUrl: 'https://i.pravatar.cc/150?img=12',
+      name: 'Dr. Forhad Zahid Shaikh',
+      designation: 'E-Governance Specialist',
+      photoUrl: '',
     },
     {
       id: 'team-3',
-      name: 'Priya Sharma',
-      designation: 'Senior Digital Policy Advisor',
-      photoUrl: 'https://i.pravatar.cc/150?img=45',
+      name: 'Engr. Md. Hafijur Rahman',
+      designation: 'Technology Analyst',
+      photoUrl: '',
     },
     {
       id: 'team-4',
-      name: 'James Anderson',
-      designation: 'Head of Innovation Lab',
-      photoUrl: 'https://i.pravatar.cc/150?img=33',
-    },
-    {
-      id: 'team-5',
-      name: 'Fatima Al-Mansouri',
-      designation: 'Data Governance Specialist',
-      photoUrl: 'https://i.pravatar.cc/150?img=32',
-    },
-    {
-      id: 'team-6',
-      name: 'David Kim',
-      designation: 'Technology Integration Manager',
-      photoUrl: 'https://i.pravatar.cc/150?img=68',
+      name: 'A.K. Sabbir Mahbub',
+      designation: 'Consultant',
+      photoUrl: '',
     },
   ];
 
@@ -195,36 +183,25 @@ const Team = () => {
           </div>
         </section>
 
-        {/* Team Section */}
+        {/* Advisory Section */}
         <section className="mb-16">
           <div className="flex items-center space-x-3 mb-8">
-            <div className="w-12 h-12 bg-undp-blue rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-undp-dark-blue rounded-lg flex items-center justify-center">
               <User className="text-white" size={24} />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue">Team</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue">Advisory</h2>
           </div>
-          {loading && teamMembers.length === 0 ? (
-            <SkeletonLoader type="team" count={6} />
-          ) : teamMembers.length > 0 ? (
+          {advisoryMembers.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-              {teamMembers.map((member) => (
+              {advisoryMembers.map((member) => (
                 <div
                   key={member.id}
                   className="card text-center group hover:shadow-xl transition-all duration-300"
                 >
                   <div className="relative mb-4">
-                    {member.photoUrl ? (
-                      <img
-                        loading="lazy"
-                        src={member.photoUrl}
-                        alt={member.name}
-                        className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-undp-light-grey group-hover:border-undp-blue transition-colors"
-                      />
-                    ) : (
-                      <div className="w-32 h-32 rounded-full mx-auto bg-undp-light-grey flex items-center justify-center border-4 border-undp-light-grey group-hover:border-undp-blue transition-colors">
-                        <User size={48} className="text-gray-400" />
-                      </div>
-                    )}
+                    <div className="w-32 h-32 rounded-full mx-auto bg-undp-light-grey flex items-center justify-center border-4 border-undp-light-grey group-hover:border-undp-dark-blue transition-colors">
+                      <User size={48} className="text-gray-400" />
+                    </div>
                   </div>
                   <h3 className="text-xl font-bold text-undp-blue mb-2">{member.name}</h3>
                   <p className="text-gray-600 mb-4">{member.designation}</p>
@@ -257,40 +234,33 @@ const Team = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No team members available. Check back soon!</p>
+              <p className="text-gray-500 text-lg">No advisory members available. Check back soon!</p>
             </div>
           )}
         </section>
 
-        {/* Advisory Section */}
+        {/* Team Section */}
         <section className="bg-undp-light-grey py-12 rounded-lg">
           <div className="px-8">
             <div className="flex items-center space-x-3 mb-6 sm:mb-8">
-              <div className="w-12 h-12 bg-undp-dark-blue rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-undp-blue rounded-lg flex items-center justify-center">
                 <User className="text-white" size={24} />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue">Advisory</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue">Team</h2>
             </div>
-            {advisoryMembers.length > 0 ? (
+            {loading && teamMembers.length === 0 ? (
+              <SkeletonLoader type="team" count={6} />
+            ) : teamMembers.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-                {advisoryMembers.map((member) => (
+                {teamMembers.map((member) => (
                   <div
                     key={member.id}
                     className="card text-center group hover:shadow-xl transition-all duration-300 bg-white"
                   >
                     <div className="relative mb-4">
-                      {member.photoUrl ? (
-                        <img
-                          loading="lazy"
-                          src={member.photoUrl}
-                          alt={member.name}
-                          className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-undp-light-grey group-hover:border-undp-dark-blue transition-colors"
-                        />
-                      ) : (
-                        <div className="w-32 h-32 rounded-full mx-auto bg-undp-light-grey flex items-center justify-center border-4 border-undp-light-grey group-hover:border-undp-dark-blue transition-colors">
-                          <User size={48} className="text-gray-400" />
-                        </div>
-                      )}
+                      <div className="w-32 h-32 rounded-full mx-auto bg-undp-light-grey flex items-center justify-center border-4 border-undp-light-grey group-hover:border-undp-blue transition-colors">
+                        <User size={48} className="text-gray-400" />
+                      </div>
                     </div>
                     <h3 className="text-xl font-bold text-undp-blue mb-2">{member.name}</h3>
                     <p className="text-gray-600 mb-4">{member.designation}</p>
@@ -323,7 +293,7 @@ const Team = () => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No advisory members available. Check back soon!</p>
+                <p className="text-gray-500 text-lg">No team members available. Check back soon!</p>
               </div>
             )}
           </div>

@@ -3,7 +3,6 @@ import { fetchCollection } from '../utils/supabaseHelpers';
 import { ChevronDown, ChevronUp, Download, Play, BookOpen, Eye } from 'lucide-react';
 import { downloadAsPDF, viewAsPDF, markdownToHTML } from '../utils/downloadPDF';
 import { resourceContents } from '../utils/resourceContent';
-import { useRequireAuth } from '../utils/requireAuth';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkeletonLoader from '../components/SkeletonLoader';
 
@@ -11,15 +10,12 @@ import SkeletonLoader from '../components/SkeletonLoader';
 const DownloadButton = ({ resource, index }) => {
   const [downloading, setDownloading] = useState(false);
   const [viewing, setViewing] = useState(false);
-  const { requireAuth } = useRequireAuth();
   
   const getContent = () => {
     return resourceContents[resource] || `# ${resource.replace('.md', '').replace(/_/g, ' ')}\n\nContent for ${resource}`;
   };
   
   const handleView = async () => {
-    if (!requireAuth('view this resource')) return;
-    
     setViewing(true);
     try {
       const content = getContent();
@@ -35,8 +31,6 @@ const DownloadButton = ({ resource, index }) => {
   };
   
   const handleDownload = async () => {
-    if (!requireAuth('download this resource')) return;
-    
     setDownloading(true);
     try {
       const content = getContent();

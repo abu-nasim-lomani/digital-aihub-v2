@@ -8,6 +8,7 @@ import { BookOpen, Plus, X, CheckCircle, Upload, FileText, File, Eye } from 'luc
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const Standards = () => {
+  const { currentUser } = useAuth();
   const { requireAuth } = useRequireAuth();
   const [showForm, setShowForm] = useState(false);
   const [showAllStandards, setShowAllStandards] = useState(false);
@@ -204,17 +205,19 @@ const Standards = () => {
         <div className="flex items-center justify-center space-x-4 mb-8">
           {!showForm && !showAllStandards && (
             <>
-              <button
-                onClick={() => {
-                  if (requireAuth('submit a new standard')) {
-                    setShowForm(true);
-                  }
-                }}
-                className="btn-primary inline-flex items-center space-x-2"
-              >
-                <Plus size={20} />
-                <span>Submit New Standard</span>
-              </button>
+              {currentUser?.isAdmin && (
+                <button
+                  onClick={() => {
+                    if (requireAuth('submit a new standard')) {
+                      setShowForm(true);
+                    }
+                  }}
+                  className="btn-primary inline-flex items-center space-x-2"
+                >
+                  <Plus size={20} />
+                  <span>Submit New Standard</span>
+                </button>
+              )}
               <button
                 onClick={() => setShowAllStandards(true)}
                 className="btn-secondary inline-flex items-center space-x-2"
@@ -235,8 +238,8 @@ const Standards = () => {
           )}
         </div>
 
-        {/* Submission Form */}
-        {showForm && (
+        {/* Submission Form - Admin Only */}
+        {showForm && currentUser?.isAdmin && (
           <div className="max-w-3xl mx-auto card mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-undp-blue">Submit New Standard</h2>
@@ -412,11 +415,6 @@ const Standards = () => {
                       {standard.fileUrl && (
                         <a
                           href={standard.fileUrl}
-                          onClick={(e) => {
-                            if (!requireAuth('download this file')) {
-                              e.preventDefault();
-                            }
-                          }}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn-primary ml-4 flex items-center space-x-2 whitespace-nowrap"

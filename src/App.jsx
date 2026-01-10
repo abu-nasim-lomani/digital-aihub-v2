@@ -7,8 +7,10 @@ import Footer from './components/Footer';
 // Pages
 import Home from './pages/Home';
 import Initiatives from './pages/Initiatives';
+import InitiativeDetail from './pages/InitiativeDetail';
 import Learning from './pages/Learning';
 import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
 import Events from './pages/Events';
 import Standards from './pages/Standards';
 import Team from './pages/Team';
@@ -23,6 +25,7 @@ import ManageLearning from './pages/admin/ManageLearning';
 import ManageEvents from './pages/admin/ManageEvents';
 import ManageStandards from './pages/admin/ManageStandards';
 import ManageTeam from './pages/admin/ManageTeam';
+import ManageSupportRequests from './pages/admin/ManageSupportRequests';
 
 // User Pages
 import UserDashboard from './pages/user/UserDashboard';
@@ -38,8 +41,10 @@ function App() {
               {/* Public Routes */}
               <Route path="/" element={<Home />} />
               <Route path="/initiatives" element={<Initiatives />} />
+              <Route path="/initiatives/:id" element={<InitiativeDetail />} />
               <Route path="/learning" element={<Learning />} />
               <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/events" element={<Events />} />
               <Route path="/standards" element={<Standards />} />
               <Route path="/team" element={<Team />} />
@@ -111,6 +116,14 @@ function App() {
                 element={
                   <ProtectedRoute adminOnly={true}>
                     <ManageTeam />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/support-requests"
+                element={
+                  <ProtectedRoute adminOnly={true}>
+                    <ManageSupportRequests />
                   </ProtectedRoute>
                 }
               />

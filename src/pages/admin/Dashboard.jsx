@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase/config';
-import { LogOut, FileText, Lightbulb, BookOpen, Calendar, Users, Award } from 'lucide-react';
+import { LogOut, FileText, Lightbulb, BookOpen, Calendar, Users, Award, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -15,13 +15,14 @@ const Dashboard = () => {
     events: 0,
     standards: 0,
     team: 0,
+    supportRequests: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const collections = ['projects', 'initiatives', 'learningModules', 'events', 'standards', 'team'];
+        const collections = ['projects', 'initiatives', 'learningModules', 'events', 'standards', 'team', 'support_requests'];
         const statsData = {};
 
         for (const col of collections) {
@@ -44,6 +45,7 @@ const Dashboard = () => {
           events: statsData.events || 0,
           standards: statsData.standards || 0,
           team: statsData.team || 0,
+          supportRequests: statsData.support_requests || 0,
         });
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -71,6 +73,7 @@ const Dashboard = () => {
     { label: 'Events', count: stats.events, icon: Calendar, color: 'bg-purple-500', link: '/admin/events' },
     { label: 'Standards', count: stats.standards, icon: Award, color: 'bg-red-500', link: '/admin/standards' },
     { label: 'Team Members', count: stats.team, icon: Users, color: 'bg-indigo-500', link: '/admin/team' },
+    { label: 'Support Requests', count: stats.supportRequests, icon: HelpCircle, color: 'bg-orange-500', link: '/admin/support-requests' },
   ];
 
   return (
@@ -152,6 +155,10 @@ const Dashboard = () => {
           <Link to="/admin/team" className="card hover:shadow-lg transition-shadow text-center">
             <Users className="mx-auto mb-2 text-undp-blue" size={32} />
             <h3 className="font-semibold text-undp-blue">Manage Team</h3>
+          </Link>
+          <Link to="/admin/support-requests" className="card hover:shadow-lg transition-shadow text-center">
+            <HelpCircle className="mx-auto mb-2 text-undp-blue" size={32} />
+            <h3 className="font-semibold text-undp-blue">Manage Support Requests</h3>
           </Link>
         </div>
       </div>

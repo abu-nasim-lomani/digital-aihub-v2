@@ -14,7 +14,7 @@ const Initiatives = () => {
   const { requireAuth } = useRequireAuth();
   const [initiatives, setInitiatives] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedType, setSelectedType] = useState('all');
+  const [selectedYear, setSelectedYear] = useState(null);
   const [selectedInitiative, setSelectedInitiative] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -70,26 +70,41 @@ const Initiatives = () => {
     fetchInitiatives();
   }, []);
 
-  const filteredInitiatives = selectedType === 'all' 
-    ? initiatives 
-    : initiatives.filter(init => init.type === selectedType);
+  // Extract year from created_at and group initiatives by year
+  const getYearFromDate = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.getFullYear();
+  };
 
-  // Filter out unwanted types like 'Test' and get unique types
-  const excludedTypes = ['test'];
-  const types = ['all', ...new Set(
-    initiatives
-      .map(init => init.type)
-      .filter(Boolean)
-      .filter(type => !excludedTypes.includes(type.toLowerCase()))
-  )];
+  // Group initiatives by year
+  const initiativesByYear = initiatives.reduce((acc, init) => {
+    const year = getYearFromDate(init.created_at);
+    if (year) {
+      if (!acc[year]) {
+        acc[year] = [];
+      }
+      acc[year].push(init);
+    }
+    return acc;
+  }, {});
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Selected type:', selectedType);
-    console.log('Total initiatives:', initiatives.length);
-    console.log('Filtered initiatives:', filteredInitiatives.length);
-    console.log('Available types:', types);
-  }, [selectedType, initiatives, filteredInitiatives, types]);
+  // Always include these years: 2026, 2025, 2024, 2023
+  const requiredYears = [2026, 2025, 2024, 2023];
+  
+  // Get years from initiatives
+  const yearsFromInitiatives = Object.keys(initiativesByYear)
+    .map(Number)
+    .sort((a, b) => b - a); // Descending order
+  
+  // Combine required years with years from initiatives, remove duplicates, and sort descending
+  const availableYears = [...new Set([...requiredYears, ...yearsFromInitiatives])]
+    .sort((a, b) => b - a);
+
+  // Filter initiatives by selected year
+  const filteredInitiatives = selectedYear 
+    ? (initiativesByYear[selectedYear] || [])
+    : [];
 
   const handleFileUpload = async (file) => {
     if (!file) return null;
@@ -279,45 +294,24 @@ const Initiatives = () => {
       </div>
 
       <div className="section-container py-8">
-        {/* Submit Initiative Form */}
-        <div className="mb-8">
-          {!showForm ? (
-            <div className="flex items-center justify-between mb-6">
-              <button
-                onClick={() => {
-                  if (requireAuth('submit a new initiative')) {
-                    setShowForm(true);
-                  }
-                }}
-                className="btn-primary inline-flex items-center space-x-2"
-              >
-                <Plus size={20} />
-                <span>Submit New Initiative</span>
-              </button>
-              
-              {/* Filter - Only show "View All Initiatives" button */}
-              <div className="flex gap-4">
-                {types.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      console.log('Filter clicked:', type);
-                      setSelectedType(type);
-                    }}
-                    className={`px-6 py-2 rounded-full font-semibold transition-colors ${
-                      selectedType === type
-                        ? 'bg-undp-blue text-white'
-                        : 'bg-undp-light-grey text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {type === 'all' ? 'View All Initiatives' : type.charAt(0).toUpperCase() + type.slice(1)}
-                  </button>
-                ))}
+        {/* Submit Initiative Form - Admin Only */}
+        {currentUser?.isAdmin && (
+          <div className="mb-8">
+            {!showForm ? (
+              <div className="mb-6">
+                <button
+                  onClick={() => {
+                    if (requireAuth('submit a new initiative')) {
+                      setShowForm(true);
+                    }
+                  }}
+                  className="btn-primary inline-flex items-center space-x-2"
+                >
+                  <Plus size={20} />
+                  <span>Submit New Initiative</span>
+                </button>
               </div>
-            </div>
-          ) : (
+            ) : (
             <div className="max-w-3xl mx-auto card">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg sm:text-xl font-bold text-undp-blue">Submit New Initiative</h2>
@@ -555,70 +549,123 @@ const Initiatives = () => {
               </form>
             </div>
           )}
-        </div>
+          </div>
+        )}
 
+        {/* Year Selection Prompt */}
+        {!selectedYear && availableYears.length > 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-600 text-lg mb-4">Select a year to view initiatives</p>
+            <div className="flex flex-wrap justify-center gap-4">
+              {availableYears.map((year) => (
+                <button
+                  key={year}
+                  onClick={() => setSelectedYear(year)}
+                  className="px-8 py-3 rounded-lg font-semibold bg-undp-blue text-white hover:bg-undp-dark-blue transition-colors text-lg"
+                >
+                  {year}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* Initiatives Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 relative min-h-[400px]">
-          {loading && initiatives.length === 0 ? (
-            <SkeletonLoader type="card" count={6} />
-          ) : filteredInitiatives.length > 0 ? (
-            filteredInitiatives.map((initiative) => (
-              <div
-                key={initiative.id}
-                className="card group cursor-pointer hover:scale-105 transition-transform duration-200"
-                onClick={() => setSelectedInitiative(initiative)}
+        {/* Initiatives List by Year */}
+        {selectedYear && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-undp-blue">Initiatives for {selectedYear}</h2>
+              <button
+                onClick={() => setSelectedYear(null)}
+                className="btn-secondary"
               >
+                Clear Selection
+              </button>
+            </div>
+            
+            {loading && filteredInitiatives.length === 0 ? (
+              <SkeletonLoader type="card" count={6} />
+            ) : filteredInitiatives.length > 0 ? (
+              <div className="space-y-4">
+                {filteredInitiatives.map((initiative, index) => (
+                  <div
+                    key={initiative.id}
+                    className="card group cursor-pointer hover:shadow-lg transition-shadow duration-200"
+                    onClick={() => setSelectedInitiative(initiative)}
+                  >
+                    <div className="flex flex-col md:flex-row gap-4">
+                      {/* Serial Number */}
+                      <div className="flex-shrink-0 flex items-center justify-center md:items-start">
+                        <div className="w-12 h-12 rounded-full bg-undp-blue text-white flex items-center justify-center font-bold text-lg">
+                          {index + 1}
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1">
                         {initiative.imageUrl && (
-                          <div className="relative overflow-hidden rounded-lg mb-4">
+                          <div className="relative overflow-hidden rounded-lg mb-4 max-w-md">
                             <img
                               src={initiative.imageUrl}
                               alt={initiative.title}
-                              className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                              className="w-full h-48 object-cover"
                               loading="lazy"
                             />
-                    <div className="absolute top-4 right-4">
-                      <span className="bg-white text-undp-blue px-3 py-1 rounded-full text-sm font-semibold">
-                        {initiative.type}
-                      </span>
+                            {initiative.type && (
+                              <div className="absolute top-4 right-4">
+                                <span className="bg-white text-undp-blue px-3 py-1 rounded-full text-sm font-semibold">
+                                  {initiative.type}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <h3 className="text-xl font-bold text-undp-blue mb-2">{initiative.title}</h3>
+                        <p className="text-gray-600 mb-4">{initiative.description}</p>
+                        
+                        {initiative.impact && (
+                          <div className="mb-4">
+                            <p className="text-sm font-semibold text-gray-700 mb-2">Impact:</p>
+                            <p className="text-gray-600 text-sm">{initiative.impact}</p>
+                          </div>
+                        )}
+                        
+                        {initiative.result && (
+                          <div className="mb-4">
+                            <p className="text-sm font-semibold text-gray-700 mb-2">Result:</p>
+                            <p className="text-gray-600 text-sm">{initiative.result}</p>
+                          </div>
+                        )}
+                        
+                        <a
+                          href={`/initiatives/${initiative.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="btn-primary inline-flex items-center space-x-2 mt-4"
+                        >
+                          <span>Read More</span>
+                          <ArrowRight size={18} />
+                        </a>
+                      </div>
                     </div>
                   </div>
-                )}
-                <h3 className="text-xl font-bold text-undp-blue mb-2">{initiative.title}</h3>
-                <p className="text-gray-600 mb-4 line-clamp-3">{initiative.description}</p>
-                
-                {/* Hover reveal */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <div className="mb-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">Impact:</p>
-                    <p className="text-gray-600 text-sm">{initiative.impact}</p>
-                  </div>
-                  {initiative.result && (
-                    <div className="mb-4">
-                      <p className="text-sm font-semibold text-gray-700 mb-2">Result:</p>
-                      <p className="text-gray-600 text-sm">{initiative.result}</p>
-                    </div>
-                  )}
-                </div>
-                
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedInitiative(initiative);
-                  }}
-                  className="btn-primary w-full mt-4 flex items-center justify-center space-x-2 py-2.5 min-h-[44px]"
-                >
-                  <span>Read More</span>
-                  <ArrowRight size={18} />
-                </button>
+                ))}
               </div>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 text-lg">No initiatives found. Check back soon!</p>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No initiatives found for {selectedYear}.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Show message if no years available */}
+        {!loading && availableYears.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No initiatives found. Check back soon!</p>
+          </div>
+        )}
       </div>
 
       {/* Initiative Details Modal */}
