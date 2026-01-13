@@ -5,15 +5,10 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
 // Pages
-import Home from './pages/Home';
-import Initiatives from './pages/Initiatives';
+import SinglePage from './pages/SinglePage';
 import InitiativeDetail from './pages/InitiativeDetail';
-import Learning from './pages/Learning';
-import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
-import Events from './pages/Events';
-import Standards from './pages/Standards';
-import Team from './pages/Team';
+import EventDetail from './pages/EventDetail';
 
 // Admin Pages
 import Login from './pages/admin/Login';
@@ -38,16 +33,12 @@ function App() {
           <Navbar />
           <main className="flex-grow">
             <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/initiatives" element={<Initiatives />} />
+              {/* Public Routes - Single Page */}
+              <Route path="/" element={<SinglePage />} />
+              {/* Detail pages still open in new tabs */}
               <Route path="/initiatives/:id" element={<InitiativeDetail />} />
-              <Route path="/learning" element={<Learning />} />
-              <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
-              <Route path="/events" element={<Events />} />
-              <Route path="/standards" element={<Standards />} />
-              <Route path="/team" element={<Team />} />
+              <Route path="/events/:id" element={<EventDetail />} />
 
               {/* Auth Routes */}
               <Route path="/login" element={<Login />} />

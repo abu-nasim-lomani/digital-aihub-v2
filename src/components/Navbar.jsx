@@ -12,16 +12,47 @@ const Navbar = () => {
   const userMenuRef = useRef(null);
 
   const navItems = [
-    { path: '/', label: 'Home' },
-    { path: '/initiatives', label: 'Initiatives' },
-    { path: '/learning', label: 'Learning & Capacity' },
-    { path: '/projects', label: 'Projects & Supports' },
-    { path: '/events', label: 'Events & Archive' },
-    { path: '/standards', label: 'Standards & Best Practices' },
-    { path: '/team', label: 'Team & Advisory' },
+    { path: '/', label: 'Home', sectionId: 'home' },
+    { path: '/initiatives', label: 'Initiatives', sectionId: 'initiatives' },
+    { path: '/learning', label: 'Learning & Capacity', sectionId: 'learning' },
+    { path: '/projects', label: 'Projects & Supports', sectionId: 'projects' },
+    { path: '/events', label: 'Events & Archive', sectionId: 'events' },
+    { path: '/standards', label: 'Standards & Best Practices', sectionId: 'standards' },
+    { path: '/team', label: 'Team & Advisory', sectionId: 'team' },
   ];
 
   const isActive = (path) => location.pathname === path;
+
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const offset = 80; // Account for fixed navbar
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleNavClick = (e, item) => {
+    // If we're on the home page, just scroll
+    if (location.pathname === '/') {
+      e.preventDefault();
+      setIsOpen(false);
+      scrollToSection(item.sectionId);
+    } else {
+      // Otherwise, navigate to home first, then scroll after a delay
+      e.preventDefault();
+      setIsOpen(false);
+      navigate('/');
+      setTimeout(() => {
+        scrollToSection(item.sectionId);
+      }, 100);
+    }
+  };
 
   const handleLogout = async () => {
     setIsOpen(false);
@@ -74,7 +105,18 @@ const Navbar = () => {
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto pl-2 sm:pl-4 lg:pl-6 pr-6 sm:pr-8 lg:pr-12">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center space-x-2">
+          <a 
+            href="/" 
+            onClick={(e) => {
+              e.preventDefault();
+              if (location.pathname === '/') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              } else {
+                navigate('/');
+              }
+            }}
+            className="flex items-center space-x-2 cursor-pointer"
+          >
             <img 
               src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/UNDP_logo.svg/1011px-UNDP_logo.svg.png" 
               alt="UNDP Logo" 
@@ -83,22 +125,23 @@ const Navbar = () => {
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold text-undp-blue">Digital & AI Hub</h1>
             </div>
-          </Link>
+          </a>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
             {navItems.map((item) => (
-              <Link
+              <a
                 key={item.path}
-                to={item.path}
-                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                href={item.path}
+                onClick={(e) => handleNavClick(e, item)}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                   isActive(item.path)
                     ? 'text-undp-blue border-b-2 border-undp-blue'
                     : 'text-gray-700 hover:text-undp-blue'
                 }`}
               >
                 {item.label}
-              </Link>
+              </a>
             ))}
             {currentUser ? (
               <div className="relative" ref={userMenuRef}>
@@ -171,18 +214,18 @@ const Navbar = () => {
         {isOpen && (
           <div className="md:hidden py-3 space-y-1">
             {navItems.map((item) => (
-              <Link
+              <a
                 key={item.path}
-                to={item.path}
-                onClick={() => setIsOpen(false)}
-                className={`block px-3 py-1.5 rounded-md text-sm font-medium ${
+                href={item.path}
+                onClick={(e) => handleNavClick(e, item)}
+                className={`block px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer ${
                   isActive(item.path)
                     ? 'bg-undp-blue text-white'
                     : 'text-gray-700 hover:bg-undp-light-grey'
                 }`}
               >
                 {item.label}
-              </Link>
+              </a>
             ))}
             {currentUser ? (
               <>

@@ -4,7 +4,8 @@ import { fetchCollection } from '../utils/supabaseHelpers';
 import { clearCache, getCachedData } from '../utils/cache';
 import { useAuth } from '../contexts/AuthContext';
 import { useRequireAuth } from '../utils/requireAuth';
-import { Calendar, Clock, MapPin, Image as ImageIcon, Video, Plus, X, CheckCircle, FileText, Download } from 'lucide-react';
+import { Calendar, Clock, MapPin, Image as ImageIcon, Video, Plus, X, CheckCircle, FileText, Download, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkeletonLoader from '../components/SkeletonLoader';
 
@@ -14,9 +15,8 @@ const Events = () => {
   const [events, setEvents] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [archivedEvents, setArchivedEvents] = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventView, setEventView] = useState('upcoming'); // 'upcoming', 'archived'
-  const [selectedYear, setSelectedYear] = useState(null);
+  const [expandedYears, setExpandedYears] = useState([]); // Track expanded years in tree view
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showArchiveForm, setShowArchiveForm] = useState(false);
@@ -49,13 +49,176 @@ const Events = () => {
     documents: [],
   });
 
+  // Demo Archive Events
+  const demoArchiveEvents = [
+    // 2025 Events
+    {
+      id: 'demo-archive-2025-1',
+      title: 'Digital Transformation Summit 2025',
+      description: 'A comprehensive summit bringing together digital transformation leaders, policymakers, and practitioners to discuss the future of digital public infrastructure and AI governance.',
+      outcome: 'Successfully convened 200+ participants from 15 countries. Launched new DPI framework guidelines and established partnerships with 5 international organizations. Published comprehensive report on digital transformation best practices.',
+      date: '2025-11-15',
+      type: 'archive',
+      location: 'Dhaka, Bangladesh',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2025-11-15T10:00:00Z',
+    },
+    {
+      id: 'demo-archive-2025-2',
+      title: 'AI for Development Workshop Series',
+      description: 'Multi-day workshop series focused on practical applications of AI in development contexts, including hands-on training sessions and case study presentations.',
+      outcome: 'Trained 150+ development practitioners in AI fundamentals and applications. Developed 10 case studies showcasing successful AI implementations. Created comprehensive training materials now used across UNDP offices.',
+      date: '2025-08-20',
+      type: 'archive',
+      location: 'Virtual & Dhaka',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2025-08-20T09:00:00Z',
+    },
+    {
+      id: 'demo-archive-2025-3',
+      title: 'Digital Public Infrastructure Launch',
+      description: 'Official launch event for the new Digital Public Infrastructure initiative, showcasing key components and implementation roadmap.',
+      outcome: 'Successfully launched DPI initiative with support from government and private sector partners. Secured commitments from 3 major technology providers. Established governance framework and implementation timeline.',
+      date: '2025-05-10',
+      type: 'archive',
+      location: 'UNDP Office, Dhaka',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2025-05-10T14:00:00Z',
+    },
+    // 2024 Events
+    {
+      id: 'demo-archive-2024-1',
+      title: 'UNDP Digital Innovation Conference 2024',
+      description: 'Annual conference highlighting digital innovation projects, capacity building initiatives, and strategic partnerships in the development sector.',
+      outcome: 'Showcased 25+ innovative digital projects. Facilitated networking between 300+ participants. Signed 8 new partnership agreements. Published innovation report with key learnings and recommendations.',
+      date: '2024-12-05',
+      type: 'archive',
+      location: 'Dhaka, Bangladesh',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2024-12-05T10:00:00Z',
+    },
+    {
+      id: 'demo-archive-2024-2',
+      title: 'Capacity Building Program: Digital Governance',
+      description: 'Intensive training program for government officials on digital governance principles, e-governance systems, and citizen-centric service delivery.',
+      outcome: 'Trained 80+ government officials from 12 ministries. Developed digital governance toolkit now used across government departments. Established peer learning network for continued knowledge sharing.',
+      date: '2024-09-18',
+      type: 'archive',
+      location: 'Bangladesh Public Administration Training Centre',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2024-09-18T08:00:00Z',
+    },
+    {
+      id: 'demo-archive-2024-3',
+      title: 'AI Ethics and Responsible Innovation Forum',
+      description: 'Forum discussing ethical considerations in AI deployment, bias mitigation strategies, and frameworks for responsible AI in development contexts.',
+      outcome: 'Developed AI ethics framework for UNDP Bangladesh. Created guidelines for responsible AI implementation. Established ethics review board. Published white paper on AI ethics in development.',
+      date: '2024-07-22',
+      type: 'archive',
+      location: 'Virtual',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2024-07-22T13:00:00Z',
+    },
+    {
+      id: 'demo-archive-2024-4',
+      title: 'Digital Inclusion Workshop',
+      description: 'Workshop focused on ensuring digital solutions are accessible and inclusive, addressing barriers faced by marginalized communities.',
+      outcome: 'Identified key barriers to digital inclusion. Developed inclusive design guidelines. Created accessibility checklist for digital projects. Trained 60+ practitioners in inclusive design principles.',
+      date: '2024-04-15',
+      type: 'archive',
+      location: 'Dhaka, Bangladesh',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2024-04-15T10:00:00Z',
+    },
+    // 2023 Events
+    {
+      id: 'demo-archive-2023-1',
+      title: 'UNDP Digital Hub Inauguration',
+      description: 'Official inauguration ceremony of the UNDP Digital & AI Hub, marking a new chapter in digital transformation initiatives.',
+      outcome: 'Successfully launched Digital & AI Hub with support from key stakeholders. Announced initial portfolio of 10 digital transformation projects. Established partnerships with academic institutions and tech companies.',
+      date: '2023-11-20',
+      type: 'archive',
+      location: 'UNDP Office, Dhaka',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2023-11-20T15:00:00Z',
+    },
+    {
+      id: 'demo-archive-2023-2',
+      title: 'E-Governance Best Practices Exchange',
+      description: 'Regional exchange program sharing e-governance best practices and lessons learned from successful digital transformation initiatives.',
+      outcome: 'Facilitated knowledge exchange between 5 countries. Documented 15 best practices. Created regional e-governance network. Published comparative analysis report.',
+      date: '2023-09-10',
+      type: 'archive',
+      location: 'Dhaka, Bangladesh',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2023-09-10T09:00:00Z',
+    },
+    {
+      id: 'demo-archive-2023-3',
+      title: 'Data Analytics for Development Training',
+      description: 'Comprehensive training program on using data analytics tools and techniques for program monitoring, evaluation, and decision-making.',
+      outcome: 'Trained 100+ development professionals in data analytics. Established data analytics community of practice. Created resource library with tools and templates. Developed case studies showcasing impact.',
+      date: '2023-06-25',
+      type: 'archive',
+      location: 'Virtual',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2023-06-25T11:00:00Z',
+    },
+    {
+      id: 'demo-archive-2023-4',
+      title: 'Digital Transformation Strategy Workshop',
+      description: 'Strategic planning workshop to develop digital transformation roadmaps for government agencies and development organizations.',
+      outcome: 'Developed digital transformation strategies for 8 organizations. Created strategic planning toolkit. Established implementation support framework. Published guidebook on digital transformation planning.',
+      date: '2023-03-12',
+      type: 'archive',
+      location: 'Dhaka, Bangladesh',
+      videoUrls: [],
+      galleryImages: [],
+      documents: [],
+      status: 'published',
+      created_at: '2023-03-12T10:00:00Z',
+    },
+  ];
+
   useEffect(() => {
     // Check cache synchronously first for instant display
     const cacheKey = `events_${JSON.stringify({})}_all`;
     const cached = getCachedData(cacheKey, true);
     
     if (cached) {
-      const sortedData = cached.sort((a, b) => {
+      // Merge demo events with cached data
+      const allEvents = [...demoArchiveEvents, ...cached];
+      const sortedData = allEvents.sort((a, b) => {
         const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
         const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
         return dateB - dateA;
@@ -105,8 +268,10 @@ const Events = () => {
       try {
         // Fetch all events (orderBy is now handled in fetchFreshData)
         const data = await fetchCollection('events', {});
+        // Merge demo events with fetched data
+        const allEvents = [...demoArchiveEvents, ...data];
         // Sort by date descending
-        const sortedData = data.sort((a, b) => {
+        const sortedData = allEvents.sort((a, b) => {
           const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
           const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
           return dateB - dateA;
@@ -151,6 +316,15 @@ const Events = () => {
         setArchivedEvents(archived);
       } catch (error) {
         console.error('Error fetching events:', error);
+        // Even if fetch fails, show demo events
+        const sortedData = demoArchiveEvents.sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB - dateA;
+        });
+        setEvents(sortedData);
+        setArchivedEvents(sortedData);
+        setUpcomingEvents([]);
       } finally {
         setLoading(false);
       }
@@ -194,10 +368,31 @@ const Events = () => {
   const availableYears = [...new Set([...requiredYears, ...yearsFromArchivedEvents])]
     .sort((a, b) => b - a);
 
-  // Filter archived events by selected year
-  const filteredArchivedEvents = selectedYear 
-    ? (archivedEventsByYear[selectedYear] || [])
-    : [];
+  // Toggle year expansion in tree view
+  const toggleYear = (year) => {
+    setExpandedYears(prev => 
+      prev.includes(year) 
+        ? prev.filter(y => y !== year)
+        : [...prev, year]
+    );
+  };
+
+  // Expand/Collapse all years
+  const expandAllYears = () => {
+    setExpandedYears(availableYears);
+  };
+
+  const collapseAllYears = () => {
+    setExpandedYears([]);
+  };
+
+  // Expand first year by default when archived events are loaded
+  useEffect(() => {
+    if (eventView === 'archived' && availableYears.length > 0 && expandedYears.length === 0 && !loading) {
+      setExpandedYears([availableYears[0]]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventView, archivedEvents.length, loading]);
 
   const formatDate = (date) => {
     if (!date) return 'Date TBA';
@@ -1147,7 +1342,6 @@ const Events = () => {
             type="button"
             onClick={() => {
               setEventView('upcoming');
-              setSelectedYear(null);
             }}
             className={`px-6 py-3 rounded-full font-semibold transition-colors ${
               eventView === 'upcoming'
@@ -1161,7 +1355,6 @@ const Events = () => {
             type="button"
             onClick={() => {
               setEventView('archived');
-              setSelectedYear(null);
             }}
             className={`px-6 py-3 rounded-full font-semibold transition-colors ${
               eventView === 'archived'
@@ -1208,12 +1401,15 @@ const Events = () => {
                       )}
                     </div>
                     <p className="text-gray-600 mb-4 line-clamp-3">{event.description}</p>
-                    <button
-                      onClick={() => setSelectedEvent(event)}
-                      className="btn-primary w-full"
+                    <Link
+                      to={`/events/${event.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary w-full inline-flex items-center justify-center space-x-2"
                     >
-                      View Details
-                    </button>
+                      <span>View Details</span>
+                      <ExternalLink size={16} />
+                    </Link>
                   </div>
                 );
               })
@@ -1226,122 +1422,120 @@ const Events = () => {
       <section className="bg-undp-light-grey py-12">
         <div className="section-container">
 
-          {/* Archived Events List */}
+          {/* Archived Events List - Tree Format */}
           {eventView === 'archived' && (
             <>
-              {/* Year Selection Prompt */}
-              {!selectedYear && availableYears.length > 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-600 text-lg mb-4">Select a year to view archived events</p>
-                  <div className="flex flex-wrap justify-center gap-4">
-                    {availableYears.map((year) => (
-                      <button
-                        key={year}
-                        onClick={() => setSelectedYear(year)}
-                        className="px-8 py-3 rounded-lg font-semibold bg-undp-blue text-white hover:bg-undp-dark-blue transition-colors text-lg"
-                      >
-                        {year}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Archived Events List by Year */}
-              {selectedYear && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-undp-blue">Archived Events for {selectedYear}</h3>
+              <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+                <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue mb-4 sm:mb-0">Archived Events</h2>
+                {availableYears.length > 0 && (
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => setSelectedYear(null)}
-                      className="btn-secondary"
+                      onClick={expandAllYears}
+                      className="text-sm px-4 py-2 bg-undp-light-grey text-undp-blue rounded-lg hover:bg-gray-200 transition-colors"
                     >
-                      Clear Selection
+                      Expand All
+                    </button>
+                    <button
+                      onClick={collapseAllYears}
+                      className="text-sm px-4 py-2 bg-undp-light-grey text-undp-blue rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Collapse All
                     </button>
                   </div>
-                  
-                  {loading && filteredArchivedEvents.length === 0 ? (
-                    <SkeletonLoader type="card" count={6} />
-                  ) : filteredArchivedEvents.length > 0 ? (
-                    <div className="space-y-4">
-                      {filteredArchivedEvents.map((event, index) => (
-                        <div
-                          key={event.id}
-                          className="card group cursor-pointer hover:shadow-lg transition-shadow duration-200"
-                          onClick={() => setSelectedEvent(event)}
+                )}
+              </div>
+              
+              {loading && archivedEvents.length === 0 ? (
+                <SkeletonLoader type="card" count={6} />
+              ) : availableYears.length > 0 ? (
+                <div className="max-w-4xl mx-auto space-y-2">
+                  {availableYears.map((year) => {
+                    const yearEvents = archivedEventsByYear[year] || [];
+                    const isExpanded = expandedYears.includes(year);
+                    
+                    return (
+                      <div key={year} className="bg-white rounded-lg shadow-md overflow-hidden">
+                        {/* Year Header - Clickable */}
+                        <button
+                          onClick={() => toggleYear(year)}
+                          className="w-full px-6 py-4 flex items-center justify-between hover:bg-undp-light-grey transition-colors text-left"
                         >
-                          <div className="flex flex-col md:flex-row gap-4">
-                            {/* Serial Number */}
-                            <div className="flex-shrink-0 flex items-center justify-center md:items-start">
-                              <div className="w-12 h-12 rounded-full bg-undp-blue text-white flex items-center justify-center font-bold text-lg">
-                                {index + 1}
-                              </div>
-                            </div>
-
-                            {/* Content */}
-                            <div className="flex-1">
-                              <h3 className="text-xl font-bold text-undp-blue mb-2">{event.title}</h3>
-                              <div className="flex items-center text-gray-600 mb-2">
-                                <Calendar size={16} className="mr-2" />
-                                <span>{formatDate(event.date)}</span>
-                              </div>
-                              {event.location && (
-                                <div className="flex items-center text-gray-600 mb-2">
-                                  <MapPin size={16} className="mr-2" />
-                                  <span>{event.location}</span>
-                                </div>
-                              )}
-                              {event.description && (
-                                <p className="text-gray-600 mb-4">{event.description}</p>
-                              )}
-                              
-                              {(event.galleryImages?.length > 0 || event.videoUrls?.length > 0 || event.videoUrl || event.documents?.length > 0) && (
-                                <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                                  {event.galleryImages?.length > 0 && (
-                                    <span className="flex items-center">
-                                      <ImageIcon size={14} className="mr-1" />
-                                      {event.galleryImages.length} photos
-                                    </span>
-                                  )}
-                                  {(event.videoUrls?.length > 0 || event.videoUrl) && (
-                                    <span className="flex items-center">
-                                      <Video size={14} className="mr-1" />
-                                      {event.videoUrls?.length || 1} video{event.videoUrls?.length > 1 ? 's' : ''} available
-                                    </span>
-                                  )}
-                                  {event.documents?.length > 0 && (
-                                    <span className="flex items-center">
-                                      <FileText size={14} className="mr-1" />
-                                      {event.documents.length} document{event.documents.length > 1 ? 's' : ''}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedEvent(event);
-                                }}
-                                className="btn-primary inline-flex items-center space-x-2 mt-4"
-                              >
-                                <span>View Details</span>
-                              </button>
-                            </div>
+                          <div className="flex items-center space-x-3">
+                            {isExpanded ? (
+                              <ChevronDown className="text-undp-blue" size={20} />
+                            ) : (
+                              <ChevronRight className="text-undp-blue" size={20} />
+                            )}
+                            <h3 className="text-xl font-bold text-undp-blue">
+                              {year}
+                            </h3>
+                            <span className="text-sm text-gray-500 bg-undp-light-grey px-3 py-1 rounded-full">
+                              {yearEvents.length} event{yearEvents.length !== 1 ? 's' : ''}
+                            </span>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500 text-lg">No archived events found for {selectedYear}.</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                        </button>
 
-              {/* Show message if no years available */}
-              {!loading && availableYears.length === 0 && (
+                        {/* Year Events - Expandable */}
+                        {isExpanded && (
+                          <div className="border-t border-gray-200">
+                            {yearEvents.length > 0 ? (
+                              <div className="divide-y divide-gray-100">
+                                {yearEvents.map((event, index) => (
+                                  <div
+                                    key={event.id}
+                                    className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                                  >
+                                    <div className="flex items-start space-x-4">
+                                      {/* Event Number */}
+                                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-undp-blue text-white flex items-center justify-center font-semibold text-sm">
+                                        {index + 1}
+                                      </div>
+                                      
+                                      {/* Event Content */}
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="text-lg font-semibold text-undp-blue mb-1">{event.title}</h4>
+                                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-2">
+                                          <div className="flex items-center">
+                                            <Calendar size={14} className="mr-1" />
+                                            <span>{formatDate(event.date)}</span>
+                                          </div>
+                                          {event.location && (
+                                            <div className="flex items-center">
+                                              <MapPin size={14} className="mr-1" />
+                                              <span>{event.location}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {event.description && (
+                                          <p className="text-gray-600 text-sm line-clamp-2 mb-2">{event.description}</p>
+                                        )}
+                                        <Link
+                                          to={`/events/${event.id}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-undp-blue hover:text-undp-dark-blue text-sm font-medium inline-flex items-center space-x-1 mt-2"
+                                        >
+                                          <span>View Details</span>
+                                          <ExternalLink size={14} />
+                                        </Link>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="px-6 py-4 text-center text-gray-500">
+                                No events for {year}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
                 <div className="text-center py-12">
                   <p className="text-gray-500 text-lg">No archived events found.</p>
                 </div>
@@ -1351,151 +1545,6 @@ const Events = () => {
         </div>
       </section>
 
-      {/* Event Details Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl sm:text-2xl font-bold text-undp-blue pr-2">{selectedEvent.title}</h2>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl flex-shrink-0"
-                aria-label="Close modal"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center text-gray-600">
-                  <Calendar size={20} className="mr-2 text-undp-blue" />
-                  <span>{formatDate(selectedEvent.date)}</span>
-                </div>
-                {selectedEvent.location && (
-                  <div className="flex items-center text-gray-600">
-                    <MapPin size={20} className="mr-2 text-undp-blue" />
-                    <span>{selectedEvent.location}</span>
-                  </div>
-                )}
-              </div>
-
-              {selectedEvent.description && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Short Description</h3>
-                  <p className="text-gray-600">{selectedEvent.description}</p>
-                </div>
-              )}
-
-              {selectedEvent.outcome && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Outcome</h3>
-                  <p className="text-gray-600 whitespace-pre-line">{selectedEvent.outcome}</p>
-                </div>
-              )}
-
-              {(selectedEvent.videoUrls?.length > 0 || selectedEvent.videoUrl) && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-4">Videos</h3>
-                  <div className="space-y-4">
-                    {selectedEvent.videoUrls?.map((videoUrl, index) => (
-                      <div key={index} className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
-                        <a
-                          href={videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-primary inline-flex items-center space-x-2"
-                        >
-                          <Video size={18} />
-                          <span>Watch Video {index + 1}</span>
-                        </a>
-                      </div>
-                    ))}
-                    {selectedEvent.videoUrl && !selectedEvent.videoUrls && (
-                      <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
-                        <a
-                          href={selectedEvent.videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-primary inline-flex items-center space-x-2"
-                        >
-                          <Video size={18} />
-                          <span>Watch Video</span>
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {selectedEvent.galleryImages && selectedEvent.galleryImages.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-4">Gallery</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-                    {selectedEvent.galleryImages.map((imageUrl, index) => (
-                      <img
-                        loading="lazy"
-                        key={index}
-                        src={imageUrl}
-                        alt={`Gallery ${index + 1}`}
-                        className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => window.open(imageUrl, '_blank')}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedEvent.documents && selectedEvent.documents.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-4">Documents</h3>
-                  <div className="space-y-2">
-                    {selectedEvent.documents.map((doc, index) => {
-                      // Handle both object format {url, name, size} and string format (URL)
-                      const docUrl = typeof doc === 'string' ? doc : doc.url || doc;
-                      const docName = typeof doc === 'string' 
-                        ? `Document ${index + 1}` 
-                        : (doc.name || `Document ${index + 1}`);
-                      const docSize = typeof doc === 'object' && doc.size ? doc.size : null;
-                      
-                      return (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
-                        >
-                          <div className="flex items-center space-x-3 flex-1 min-w-0">
-                            <div className="bg-undp-blue rounded-lg p-2 flex-shrink-0">
-                              <FileText size={20} className="text-white" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {docName}
-                              </p>
-                              {docSize && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {(docSize / 1024).toFixed(1)} KB
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <a
-                            href={docUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn-primary ml-4 flex items-center space-x-2 whitespace-nowrap flex-shrink-0"
-                          >
-                            <Download size={18} />
-                            <span>Download</span>
-                          </a>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

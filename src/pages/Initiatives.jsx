@@ -4,7 +4,7 @@ import { fetchCollection } from '../utils/supabaseHelpers';
 import { clearCache, getCachedData } from '../utils/cache';
 import { useAuth } from '../contexts/AuthContext';
 import { useRequireAuth } from '../utils/requireAuth';
-import { ArrowRight, ExternalLink, Upload, Image as ImageIcon, Plus, X, CheckCircle, FileText } from 'lucide-react';
+import { ArrowRight, ExternalLink, Upload, Image as ImageIcon, Plus, X, CheckCircle, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkeletonLoader from '../components/SkeletonLoader';
@@ -14,8 +14,7 @@ const Initiatives = () => {
   const { requireAuth } = useRequireAuth();
   const [initiatives, setInitiatives] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState(null);
-  const [selectedInitiative, setSelectedInitiative] = useState(null);
+  const [expandedYears, setExpandedYears] = useState([]); // Track expanded years in tree view
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -101,10 +100,31 @@ const Initiatives = () => {
   const availableYears = [...new Set([...requiredYears, ...yearsFromInitiatives])]
     .sort((a, b) => b - a);
 
-  // Filter initiatives by selected year
-  const filteredInitiatives = selectedYear 
-    ? (initiativesByYear[selectedYear] || [])
-    : [];
+  // Toggle year expansion in tree view
+  const toggleYear = (year) => {
+    setExpandedYears(prev => 
+      prev.includes(year) 
+        ? prev.filter(y => y !== year)
+        : [...prev, year]
+    );
+  };
+
+  // Expand/Collapse all years
+  const expandAllYears = () => {
+    setExpandedYears(availableYears);
+  };
+
+  const collapseAllYears = () => {
+    setExpandedYears([]);
+  };
+
+  // Expand first year by default when initiatives are loaded
+  useEffect(() => {
+    if (availableYears.length > 0 && expandedYears.length === 0 && !loading) {
+      setExpandedYears([availableYears[0]]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initiatives.length, loading]);
 
   const handleFileUpload = async (file) => {
     if (!file) return null;
@@ -282,7 +302,7 @@ const Initiatives = () => {
     }
   };
 
-          return (
+  return (
     <div className="min-h-screen bg-white">
       <div className="bg-undp-blue text-white py-6">
         <div className="section-container text-center">
@@ -552,201 +572,132 @@ const Initiatives = () => {
           </div>
         )}
 
-        {/* Year Selection Prompt */}
-        {!selectedYear && availableYears.length > 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg mb-4">Select a year to view initiatives</p>
-            <div className="flex flex-wrap justify-center gap-4">
-              {availableYears.map((year) => (
-                <button
-                  key={year}
-                  onClick={() => setSelectedYear(year)}
-                  className="px-8 py-3 rounded-lg font-semibold bg-undp-blue text-white hover:bg-undp-dark-blue transition-colors text-lg"
-                >
-                  {year}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Initiatives List by Year */}
-        {selectedYear && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-undp-blue">Initiatives for {selectedYear}</h2>
+        {/* Initiatives Tree Format */}
+        <div className="flex flex-col sm:flex-row items-center justify-end mb-6">
+          {availableYears.length > 0 && (
+            <div className="flex gap-2">
               <button
-                onClick={() => setSelectedYear(null)}
-                className="btn-secondary"
+                onClick={expandAllYears}
+                className="text-sm px-4 py-2 bg-undp-light-grey text-undp-blue rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Clear Selection
+                Expand All
+              </button>
+              <button
+                onClick={collapseAllYears}
+                className="text-sm px-4 py-2 bg-undp-light-grey text-undp-blue rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Collapse All
               </button>
             </div>
-            
-            {loading && filteredInitiatives.length === 0 ? (
-              <SkeletonLoader type="card" count={6} />
-            ) : filteredInitiatives.length > 0 ? (
-              <div className="space-y-4">
-                {filteredInitiatives.map((initiative, index) => (
-                  <div
-                    key={initiative.id}
-                    className="card group cursor-pointer hover:shadow-lg transition-shadow duration-200"
-                    onClick={() => setSelectedInitiative(initiative)}
+          )}
+        </div>
+
+        {loading && initiatives.length === 0 ? (
+          <SkeletonLoader type="card" count={6} />
+        ) : availableYears.length > 0 ? (
+          <div className="max-w-4xl mx-auto space-y-2">
+            {availableYears.map((year) => {
+              const yearInitiatives = initiativesByYear[year] || [];
+              const isExpanded = expandedYears.includes(year);
+              
+              return (
+                <div key={year} className="bg-white rounded-lg shadow-md overflow-hidden">
+                  {/* Year Header - Clickable */}
+                  <button
+                    onClick={() => toggleYear(year)}
+                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-undp-light-grey transition-colors text-left"
                   >
-                    <div className="flex flex-col md:flex-row gap-4">
-                      {/* Serial Number */}
-                      <div className="flex-shrink-0 flex items-center justify-center md:items-start">
-                        <div className="w-12 h-12 rounded-full bg-undp-blue text-white flex items-center justify-center font-bold text-lg">
-                          {index + 1}
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1">
-                        {initiative.imageUrl && (
-                          <div className="relative overflow-hidden rounded-lg mb-4 max-w-md">
-                            <img
-                              src={initiative.imageUrl}
-                              alt={initiative.title}
-                              className="w-full h-48 object-cover"
-                              loading="lazy"
-                            />
-                            {initiative.type && (
-                              <div className="absolute top-4 right-4">
-                                <span className="bg-white text-undp-blue px-3 py-1 rounded-full text-sm font-semibold">
-                                  {initiative.type}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <h3 className="text-xl font-bold text-undp-blue mb-2">{initiative.title}</h3>
-                        <p className="text-gray-600 mb-4">{initiative.description}</p>
-                        
-                        {initiative.impact && (
-                          <div className="mb-4">
-                            <p className="text-sm font-semibold text-gray-700 mb-2">Impact:</p>
-                            <p className="text-gray-600 text-sm">{initiative.impact}</p>
-                          </div>
-                        )}
-                        
-                        {initiative.result && (
-                          <div className="mb-4">
-                            <p className="text-sm font-semibold text-gray-700 mb-2">Result:</p>
-                            <p className="text-gray-600 text-sm">{initiative.result}</p>
-                          </div>
-                        )}
-                        
-                        <a
-                          href={`/initiatives/${initiative.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="btn-primary inline-flex items-center space-x-2 mt-4"
-                        >
-                          <span>Read More</span>
-                          <ArrowRight size={18} />
-                        </a>
-                      </div>
+                    <div className="flex items-center space-x-3">
+                      {isExpanded ? (
+                        <ChevronDown className="text-undp-blue" size={20} />
+                      ) : (
+                        <ChevronRight className="text-undp-blue" size={20} />
+                      )}
+                      <h3 className="text-xl font-bold text-undp-blue">
+                        {year}
+                      </h3>
+                      <span className="text-sm text-gray-500 bg-undp-light-grey px-3 py-1 rounded-full">
+                        {yearInitiatives.length} initiative{yearInitiatives.length !== 1 ? 's' : ''}
+                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No initiatives found for {selectedYear}.</p>
-              </div>
-            )}
-          </div>
-        )}
+                  </button>
 
-        {/* Show message if no years available */}
-        {!loading && availableYears.length === 0 && (
+                  {/* Year Initiatives - Expandable */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-200">
+                      {yearInitiatives.length > 0 ? (
+                        <div className="divide-y divide-gray-100">
+                          {yearInitiatives.map((initiative, index) => (
+                            <div
+                              key={initiative.id}
+                              className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-start space-x-4">
+                                {/* Initiative Number */}
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-undp-blue text-white flex items-center justify-center font-semibold text-sm">
+                                  {index + 1}
+                                </div>
+                                
+                                {/* Initiative Content */}
+                                <div className="flex-1 min-w-0">
+                                  {initiative.imageUrl && (
+                                    <div className="relative overflow-hidden rounded-lg mb-3 max-w-xs">
+                                      <img
+                                        src={initiative.imageUrl}
+                                        alt={initiative.title}
+                                        className="w-full h-32 object-cover"
+                                        loading="lazy"
+                                      />
+                                      {initiative.type && (
+                                        <div className="absolute top-2 right-2">
+                                          <span className="bg-white text-undp-blue px-2 py-1 rounded-full text-xs font-semibold">
+                                            {initiative.type}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  <h4 className="text-lg font-semibold text-undp-blue mb-1">{initiative.title}</h4>
+                                  {initiative.description && (
+                                    <p className="text-gray-600 text-sm line-clamp-2 mb-2">{initiative.description}</p>
+                                  )}
+                                  {initiative.impact && (
+                                    <p className="text-gray-600 text-xs line-clamp-1 mb-2">
+                                      <span className="font-semibold">Impact: </span>{initiative.impact}
+                                    </p>
+                                  )}
+                                  <Link
+                                    to={`/initiatives/${initiative.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-undp-blue hover:text-undp-dark-blue text-sm font-medium inline-flex items-center space-x-1 mt-2"
+                                  >
+                                    <span>Read More</span>
+                                    <ExternalLink size={14} />
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-6 py-4 text-center text-gray-500">
+                          No initiatives for {year}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No initiatives found. Check back soon!</p>
           </div>
         )}
       </div>
 
-      {/* Initiative Details Modal */}
-      {selectedInitiative && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl sm:text-2xl font-bold text-undp-blue pr-2">{selectedInitiative.title}</h2>
-              <button
-                onClick={() => setSelectedInitiative(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl flex-shrink-0"
-                aria-label="Close modal"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-6">
-              {selectedInitiative.imageUrl && (
-                <div>
-                  <img
-                    src={selectedInitiative.imageUrl}
-                    alt={selectedInitiative.title}
-                    className="w-full h-64 object-cover rounded-lg"
-                  />
-                </div>
-              )}
-
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-2">Initiative Name</h3>
-                <p className="text-gray-800 text-lg">{selectedInitiative.title}</p>
-              </div>
-
-              {selectedInitiative.type && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Type</h3>
-                  <span className="inline-block bg-undp-blue text-white px-3 py-1 rounded-full text-sm font-medium">
-                    {selectedInitiative.type}
-                  </span>
-                </div>
-              )}
-
-              {selectedInitiative.description && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Description</h3>
-                  <p className="text-gray-600 whitespace-pre-line">{selectedInitiative.description}</p>
-                </div>
-              )}
-
-              {selectedInitiative.impact && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Impact</h3>
-                  <p className="text-gray-600 whitespace-pre-line">{selectedInitiative.impact}</p>
-                </div>
-              )}
-
-              {selectedInitiative.result && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Result</h3>
-                  <p className="text-gray-600 whitespace-pre-line">{selectedInitiative.result}</p>
-                </div>
-              )}
-
-              {selectedInitiative.documentUrl && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Document</h3>
-                  <a
-                    href={selectedInitiative.documentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-primary inline-flex items-center space-x-2"
-                  >
-                    <FileText size={18} />
-                    <span>{selectedInitiative.documentName || 'View Document'}</span>
-                    <ExternalLink size={16} />
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

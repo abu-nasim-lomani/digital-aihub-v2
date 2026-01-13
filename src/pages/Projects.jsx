@@ -5,7 +5,8 @@ import { fetchCollection } from '../utils/supabaseHelpers';
 import { clearCache, getCachedData } from '../utils/cache';
 import { useAuth } from '../contexts/AuthContext';
 import { useRequireAuth } from '../utils/requireAuth';
-import { Download, FileText, Plus, X, CheckCircle, Upload } from 'lucide-react';
+import { Download, FileText, Plus, X, CheckCircle, Upload, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkeletonLoader from '../components/SkeletonLoader';
 
@@ -14,8 +15,7 @@ const Projects = () => {
   const { requireAuth } = useRequireAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(null);
-  const [selectedProject, setSelectedProject] = useState(null);
+  const [expandedYears, setExpandedYears] = useState([]); // Track expanded years in tree view
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showSupportRequestForm, setShowSupportRequestForm] = useState(false);
@@ -111,10 +111,31 @@ const Projects = () => {
   const availableYears = [...new Set([...requiredYears, ...yearsFromProjects])]
     .sort((a, b) => b - a);
 
-  // Filter projects by selected year
-  const filteredProjects = selectedYear 
-    ? (projectsByYear[selectedYear] || [])
-    : [];
+  // Toggle year expansion in tree view
+  const toggleYear = (year) => {
+    setExpandedYears(prev => 
+      prev.includes(year) 
+        ? prev.filter(y => y !== year)
+        : [...prev, year]
+    );
+  };
+
+  // Expand/Collapse all years
+  const expandAllYears = () => {
+    setExpandedYears(availableYears);
+  };
+
+  const collapseAllYears = () => {
+    setExpandedYears([]);
+  };
+
+  // Expand first year by default when projects are loaded
+  useEffect(() => {
+    if (availableYears.length > 0 && expandedYears.length === 0 && !loading) {
+      setExpandedYears([availableYears[0]]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.length, loading]);
 
   const handleDocumentUpload = async (file) => {
     if (!file) return null;
@@ -682,167 +703,122 @@ const Projects = () => {
           </div>
         )}
 
-        {/* Year Selection Prompt */}
-        {!selectedYear && availableYears.length > 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg mb-4">Select a year to view projects</p>
-            <div className="flex flex-wrap justify-center gap-4">
-              {availableYears.map((year) => (
-                <button
-                  key={year}
-                  onClick={() => setSelectedYear(year)}
-                  className="px-8 py-3 rounded-lg font-semibold bg-undp-blue text-white hover:bg-undp-dark-blue transition-colors text-lg"
-                >
-                  {year}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Projects List by Year */}
-        {selectedYear && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-undp-blue">Projects for {selectedYear}</h2>
+        {/* Projects Tree Format */}
+        <div className="flex flex-col sm:flex-row items-center justify-end mb-6">
+          {availableYears.length > 0 && (
+            <div className="flex gap-2">
               <button
-                onClick={() => setSelectedYear(null)}
-                className="btn-secondary"
+                onClick={expandAllYears}
+                className="text-sm px-4 py-2 bg-undp-light-grey text-undp-blue rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Clear Selection
+                Expand All
+              </button>
+              <button
+                onClick={collapseAllYears}
+                className="text-sm px-4 py-2 bg-undp-light-grey text-undp-blue rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Collapse All
               </button>
             </div>
-            
-            {loading && filteredProjects.length === 0 ? (
-              <SkeletonLoader type="card" count={6} />
-            ) : filteredProjects.length > 0 ? (
-              <div className="space-y-4">
-                {filteredProjects.map((project, index) => (
-                  <div
-                    key={project.id}
-                    className="card group cursor-pointer hover:shadow-lg transition-shadow duration-200"
-                    onClick={() => setSelectedProject(project)}
+          )}
+        </div>
+
+        {loading && projects.length === 0 ? (
+          <SkeletonLoader type="card" count={6} />
+        ) : availableYears.length > 0 ? (
+          <div className="max-w-4xl mx-auto space-y-2">
+            {availableYears.map((year) => {
+              const yearProjects = projectsByYear[year] || [];
+              const isExpanded = expandedYears.includes(year);
+              
+              return (
+                <div key={year} className="bg-white rounded-lg shadow-md overflow-hidden">
+                  {/* Year Header - Clickable */}
+                  <button
+                    onClick={() => toggleYear(year)}
+                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-undp-light-grey transition-colors text-left"
                   >
-                    <div className="flex flex-col md:flex-row gap-4">
-                      {/* Serial Number */}
-                      <div className="flex-shrink-0 flex items-center justify-center md:items-start">
-                        <div className="w-12 h-12 rounded-full bg-undp-blue text-white flex items-center justify-center font-bold text-lg">
-                          {index + 1}
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-undp-blue mb-2">{project.title}</h3>
-                        <div className="mb-2">
-                          <span className="inline-block bg-undp-blue text-white px-3 py-1 rounded-full text-sm">
-                            {project.supportType}
-                          </span>
-                        </div>
-                        {project.duration && (
-                          <div className="text-gray-600 mb-2">
-                            <strong>Duration:</strong> {project.duration}
-                          </div>
-                        )}
-                        {project.impact && (
-                          <p className="text-gray-600 mb-4">{project.impact}</p>
-                        )}
-                        
-                        <a
-                          href={`/projects/${project.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="btn-primary inline-flex items-center space-x-2 mt-4"
-                        >
-                          <FileText size={18} />
-                          <span>View Details</span>
-                        </a>
-                      </div>
+                    <div className="flex items-center space-x-3">
+                      {isExpanded ? (
+                        <ChevronDown className="text-undp-blue" size={20} />
+                      ) : (
+                        <ChevronRight className="text-undp-blue" size={20} />
+                      )}
+                      <h3 className="text-xl font-bold text-undp-blue">
+                        {year}
+                      </h3>
+                      <span className="text-sm text-gray-500 bg-undp-light-grey px-3 py-1 rounded-full">
+                        {yearProjects.length} project{yearProjects.length !== 1 ? 's' : ''}
+                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No projects found for {selectedYear}.</p>
-              </div>
-            )}
-          </div>
-        )}
+                  </button>
 
-        {/* Show message if no years available */}
-        {!loading && availableYears.length === 0 && (
+                  {/* Year Projects - Expandable */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-200">
+                      {yearProjects.length > 0 ? (
+                        <div className="divide-y divide-gray-100">
+                          {yearProjects.map((project, index) => (
+                            <div
+                              key={project.id}
+                              className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-start space-x-4">
+                                {/* Project Number */}
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-undp-blue text-white flex items-center justify-center font-semibold text-sm">
+                                  {index + 1}
+                                </div>
+                                
+                                {/* Project Content */}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-lg font-semibold text-undp-blue mb-1">{project.title}</h4>
+                                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-2">
+                                    {project.supportType && (
+                                      <span className="inline-block bg-undp-blue text-white px-2 py-1 rounded-full text-xs">
+                                        {project.supportType}
+                                      </span>
+                                    )}
+                                    {project.duration && (
+                                      <span className="text-gray-600">
+                                        <strong>Duration:</strong> {project.duration}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {project.impact && (
+                                    <p className="text-gray-600 text-sm line-clamp-2 mb-2">{project.impact}</p>
+                                  )}
+                                  <Link
+                                    to={`/projects/${project.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-undp-blue hover:text-undp-dark-blue text-sm font-medium inline-flex items-center space-x-1 mt-2"
+                                  >
+                                    <span>View Details</span>
+                                    <ExternalLink size={14} />
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-6 py-4 text-center text-gray-500">
+                          No projects for {year}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No projects found. Check back soon!</p>
           </div>
         )}
       </div>
 
-      {/* Project Details Modal */}
-      {selectedProject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl sm:text-2xl font-bold text-undp-blue pr-2">{selectedProject.title}</h2>
-              <button
-                onClick={() => setSelectedProject(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl flex-shrink-0"
-                aria-label="Close modal"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-6">
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-2">Project Name</h3>
-                <p className="text-gray-800 text-lg">{selectedProject.title}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-2">Support Type</h3>
-                <span className="inline-block bg-undp-blue text-white px-3 py-1 rounded-full text-sm font-medium">
-                  {selectedProject.supportType || selectedProject.support_type}
-                </span>
-              </div>
-              
-              {selectedProject.duration && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Project Duration</h3>
-                  <p className="text-gray-600">{selectedProject.duration}</p>
-                </div>
-              )}
-              
-              {selectedProject.impact && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Impact</h3>
-                  <p className="text-gray-600 whitespace-pre-line">{selectedProject.impact}</p>
-                </div>
-              )}
-              
-              {(selectedProject.documentUrl || selectedProject.document_url) && (
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Project Details (Documents)</h3>
-                  <a
-                    href={selectedProject.documentUrl || selectedProject.document_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => {
-                      if (!requireAuth('download this document')) {
-                        e.preventDefault();
-                      }
-                    }}
-                    className="btn-primary inline-flex items-center space-x-2"
-                  >
-                    <Download size={18} />
-                    <span>Download Document</span>
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
