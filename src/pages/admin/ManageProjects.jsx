@@ -11,8 +11,8 @@ const ManageProjects = () => {
   const [formData, setFormData] = useState({
     title: '',
     supportType: '',
+
     documentUrl: '',
-    duration: '',
     impact: '',
     status: 'published',
   });
@@ -28,7 +28,7 @@ const ManageProjects = () => {
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       setProjects(data || []);
     } catch (error) {
@@ -40,19 +40,26 @@ const ManageProjects = () => {
 
   const handleFileUpload = async (file) => {
     if (!file) return null;
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size exceeds 10MB limit.');
+      return null;
+    }
+
     setUploading(true);
     try {
       const filePath = `projects/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('files')
         .upload(filePath, file);
-      
+
       if (uploadError) throw uploadError;
-      
+
       const { data: urlData } = supabase.storage
         .from('files')
         .getPublicUrl(filePath);
-      
+
       return urlData.publicUrl;
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -70,8 +77,8 @@ const ManageProjects = () => {
         const updateData = {
           title: formData.title || editingProject.title,
           support_type: formData.supportType || editingProject.support_type || null,
+
           document_url: formData.documentUrl || editingProject.document_url || null,
-          duration: formData.duration || editingProject.duration || null,
           impact: formData.impact || editingProject.impact || null,
           status: formData.status || editingProject.status || 'pending',
         };
@@ -87,11 +94,11 @@ const ManageProjects = () => {
       } else {
         const { error } = await supabase
           .from('projects')
-          .insert({ 
-            ...formData, 
-            support_type: formData.supportType,
+          .insert({
+            ...formData,
+
             document_url: formData.documentUrl,
-            created_at: new Date().toISOString() 
+            created_at: new Date().toISOString()
           })
           .select();
         if (error) throw error;
@@ -100,9 +107,8 @@ const ManageProjects = () => {
       setEditingProject(null);
       setFormData({
         title: '',
-        supportType: '',
+
         documentUrl: '',
-        duration: '',
         impact: '',
         status: 'published',
       });
@@ -117,9 +123,8 @@ const ManageProjects = () => {
     setEditingProject(project);
     setFormData({
       title: project.title || '',
-      supportType: project.support_type || project.supportType || '',
+
       documentUrl: project.document_url || project.documentUrl || '',
-      duration: project.duration || '',
       impact: project.impact || '',
       status: project.status || 'published',
     });
@@ -162,9 +167,8 @@ const ManageProjects = () => {
               setEditingProject(null);
               setFormData({
                 title: '',
-                supportType: '',
+
                 documentUrl: '',
-                duration: '',
                 impact: '',
                 status: 'published',
               });
@@ -188,7 +192,6 @@ const ManageProjects = () => {
               <thead className="bg-undp-light-grey">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Title</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Support Type</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
                 </tr>
@@ -197,14 +200,12 @@ const ManageProjects = () => {
                 {projects.map((project) => (
                   <tr key={project.id} className="hover:bg-undp-light-grey">
                     <td className="px-6 py-4 font-semibold">{project.title}</td>
-                    <td className="px-6 py-4">{project.supportType}</td>
                     <td className="px-6 py-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-sm ${
-                          project.status === 'published'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
+                        className={`px-3 py-1 rounded-full text-sm ${project.status === 'published'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                          }`}
                       >
                         {project.status}
                       </span>
@@ -261,34 +262,8 @@ const ManageProjects = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-undp-blue"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Support Type</label>
-                  <select
-                    value={formData.supportType}
-                    onChange={(e) => setFormData({ ...formData, supportType: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-undp-blue"
-                  >
-                    <option value="">Select Support Type</option>
-                    <option value="Architecture Development">Architecture Development</option>
-                    <option value="Consultancy">Consultancy</option>
-                    <option value="Technical Support">Technical Support</option>
-                    <option value="Capacity Building">Capacity Building</option>
-                    <option value="Training">Training</option>
-                    <option value="Research & Development">Research & Development</option>
-                    <option value="Implementation">Implementation</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Project Duration</label>
-                  <input
-                    type="text"
-                    value={formData.duration}
-                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                    placeholder="e.g., 6 months, 1 year, Q1 2024 - Q2 2024"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-undp-blue"
-                  />
-                </div>
+
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Impact</label>
                   <textarea

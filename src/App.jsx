@@ -14,13 +14,12 @@ import EventDetail from './pages/EventDetail';
 import Login from './pages/admin/Login';
 import Signup from './pages/admin/Signup';
 import Dashboard from './pages/admin/Dashboard';
-import ManageProjects from './pages/admin/ManageProjects';
+import ManageProjectsAndSupport from './pages/admin/ManageProjectsAndSupport';
 import ManageInitiatives from './pages/admin/ManageInitiatives';
 import ManageLearning from './pages/admin/ManageLearning';
 import ManageEvents from './pages/admin/ManageEvents';
 import ManageStandards from './pages/admin/ManageStandards';
 import ManageTeam from './pages/admin/ManageTeam';
-import ManageSupportRequests from './pages/admin/ManageSupportRequests';
 
 // User Pages
 import UserDashboard from './pages/user/UserDashboard';
@@ -44,7 +43,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/admin" element={<Login />} />
-              
+
               {/* User Dashboard - Protected for logged-in users */}
               <Route
                 path="/user/dashboard"
@@ -66,7 +65,7 @@ function App() {
                 path="/admin/projects"
                 element={
                   <ProtectedRoute adminOnly={true}>
-                    <ManageProjects />
+                    <ManageProjectsAndSupport />
                   </ProtectedRoute>
                 }
               />
@@ -107,14 +106,6 @@ function App() {
                 element={
                   <ProtectedRoute adminOnly={true}>
                     <ManageTeam />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/support-requests"
-                element={
-                  <ProtectedRoute adminOnly={true}>
-                    <ManageSupportRequests />
                   </ProtectedRoute>
                 }
               />
