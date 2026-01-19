@@ -138,7 +138,7 @@ const SinglePage = () => {
       </section>
 
       {/* Mission & Purpose Section - Clean Modern Design */}
-      <section className="section-container scroll-mt-20 py-20 bg-gray-50/80">
+      <section id="mission" className="section-container scroll-mt-20 py-20 bg-gray-50/80">
         <div className="max-w-6xl mx-auto px-4">
 
           {/* Section Title */}

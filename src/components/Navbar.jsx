@@ -34,6 +34,13 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Listen for voice command to open auth modal
+  useEffect(() => {
+    const handleVoiceAuth = () => setShowAuthModal(true);
+    window.addEventListener('open-auth-modal', handleVoiceAuth);
+    return () => window.removeEventListener('open-auth-modal', handleVoiceAuth);
+  }, []);
+
   // Close menus on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {

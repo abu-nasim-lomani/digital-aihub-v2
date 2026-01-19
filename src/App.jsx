@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import VoiceAgent from './components/VoiceAgent';
 
 // Pages
 import SinglePage from './pages/SinglePage';
@@ -121,6 +122,7 @@ const AppLayout = () => {
         </Routes>
       </main>
       {!isAdminRoute && <Footer />}
+      <VoiceAgent />
     </div>
   );
 };
