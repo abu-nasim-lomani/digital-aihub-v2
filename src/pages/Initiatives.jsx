@@ -4,9 +4,8 @@ import { fetchCollection } from '../utils/supabaseHelpers';
 import { clearCache, getCachedData } from '../utils/cache';
 import { useAuth } from '../contexts/AuthContext';
 import { useRequireAuth } from '../utils/requireAuth';
-import { ArrowRight, ExternalLink, Upload, Image as ImageIcon, Plus, X, CheckCircle, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowRight, ExternalLink, Upload, Image as ImageIcon, Plus, X, CheckCircle, FileText, Calendar, Filter, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import LoadingSpinner from '../components/LoadingSpinner';
 import SkeletonLoader from '../components/SkeletonLoader';
 
 const Initiatives = () => {
@@ -14,7 +13,6 @@ const Initiatives = () => {
   const { requireAuth } = useRequireAuth();
   const [initiatives, setInitiatives] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expandedYears, setExpandedYears] = useState([]); // Track expanded years in tree view
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -30,13 +28,15 @@ const Initiatives = () => {
     impact: '',
   });
 
+  // Category Tabs State
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
   useEffect(() => {
     // Check cache synchronously first for instant display
     const cacheKey = `initiatives_${JSON.stringify({ status: 'published' })}_all`;
     const cached = getCachedData(cacheKey, true);
-    
+
     if (cached) {
-      // Map snake_case to camelCase for display
       const mappedCached = cached.map(init => ({
         ...init,
         imageUrl: init.image_url || init.imageUrl,
@@ -46,12 +46,11 @@ const Initiatives = () => {
       setInitiatives(mappedCached);
       setLoading(false);
     }
-    
-    // Fetch fresh data (will use cache if available)
+
+    // Fetch fresh data
     const fetchInitiatives = async () => {
       try {
         const data = await fetchCollection('initiatives', { status: 'published' });
-        // Map snake_case to camelCase for display
         const mappedData = data.map(init => ({
           ...init,
           imageUrl: init.image_url || init.imageUrl,
@@ -69,182 +68,61 @@ const Initiatives = () => {
     fetchInitiatives();
   }, []);
 
-  // Extract year from created_at and group initiatives by year
-  const getYearFromDate = (dateString) => {
-    if (!dateString) return null;
-    const date = new Date(dateString);
-    return date.getFullYear();
-  };
-
-  // Group initiatives by year
-  const initiativesByYear = initiatives.reduce((acc, init) => {
-    const year = getYearFromDate(init.created_at);
-    if (year) {
-      if (!acc[year]) {
-        acc[year] = [];
-      }
-      acc[year].push(init);
-    }
-    return acc;
-  }, {});
-
-  // Always include these years: 2026, 2025, 2024, 2023
-  const requiredYears = [2026, 2025, 2024, 2023];
-  
-  // Get years from initiatives
-  const yearsFromInitiatives = Object.keys(initiativesByYear)
-    .map(Number)
-    .sort((a, b) => b - a); // Descending order
-  
-  // Combine required years with years from initiatives, remove duplicates, and sort descending
-  const availableYears = [...new Set([...requiredYears, ...yearsFromInitiatives])]
-    .sort((a, b) => b - a);
-
-  // Toggle year expansion in tree view
-  const toggleYear = (year) => {
-    setExpandedYears(prev => 
-      prev.includes(year) 
-        ? prev.filter(y => y !== year)
-        : [...prev, year]
-    );
-  };
-
-  // Expand/Collapse all years
-  const expandAllYears = () => {
-    setExpandedYears(availableYears);
-  };
-
-  const collapseAllYears = () => {
-    setExpandedYears([]);
-  };
-
-  // Expand first year by default when initiatives are loaded
-  useEffect(() => {
-    if (availableYears.length > 0 && expandedYears.length === 0 && !loading) {
-      setExpandedYears([availableYears[0]]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initiatives.length, loading]);
+  // Fixed categories as requested + dynamic ones
+  const fixedCategories = ['All', 'AI', 'Tech', 'Governance'];
+  const dynamicCategories = [...new Set(initiatives.map(i => i.type).filter(Boolean))];
+  // Merge and ensure uniqueness, keeping fixed ones first
+  const categories = [...new Set([...fixedCategories, ...dynamicCategories])];
 
   const handleFileUpload = async (file) => {
     if (!file) return null;
-    
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert('File size exceeds 10MB limit. Please choose a smaller file.');
+      alert('File size exceeds 10MB limit.');
       return null;
     }
-    
+
     setUploading(true);
-    
     try {
-      console.log('=== UPLOAD START ===');
-      console.log('File:', file.name, 'Size:', file.size, 'Type:', file.type);
-      
-      // Determine file type and folder
       const isImage = file.type.startsWith('image/');
       const isPDF = file.type === 'application/pdf';
       const folder = isImage ? 'initiatives/images' : 'initiatives/documents';
       const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const filePath = `${folder}/${fileName}`;
-      
-      console.log('Storage path:', filePath);
-      
-      // Upload file to Supabase Storage
-      console.log('Uploading to Supabase Storage...');
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('files')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-      
-      if (uploadError) {
-        throw uploadError;
-      }
-      
-      console.log('Upload complete:', uploadData);
-      
-      // Get public URL
-      console.log('Getting public URL...');
-      const { data: urlData } = supabase.storage
-        .from('files')
-        .getPublicUrl(filePath);
-      
-      const url = urlData.publicUrl;
-      console.log('=== UPLOAD SUCCESS ===');
-      console.log('URL:', url);
-      
-      return { url, type: isImage ? 'image' : isPDF ? 'pdf' : 'document', fileName: file.name };
+
+      const { data, error } = await supabase.storage.from('files').upload(filePath, file, { cacheControl: '3600', upsert: false });
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage.from('files').getPublicUrl(filePath);
+      return { url: urlData.publicUrl, type: isImage ? 'image' : isPDF ? 'pdf' : 'document', fileName: file.name };
     } catch (error) {
-      console.error('=== UPLOAD ERROR ===');
-      console.error('Full error:', error);
-      console.error('Error message:', error.message);
-      
-      let errorMessage = 'Upload failed: ';
-      
-      if (error.message?.includes('new row violates row-level security') || error.message?.includes('permission denied')) {
-        errorMessage += 'Permission denied. Please check Supabase Storage policies allow uploads.';
-      } else if (error.message?.includes('Bucket not found')) {
-        errorMessage += 'Storage bucket not found. Please create a bucket named "files" in Supabase Storage.';
-      } else if (error.message) {
-        errorMessage += error.message;
-      } else {
-        errorMessage += 'Check internet connection and Supabase configuration.';
-      }
-      
-      alert(errorMessage);
+      console.error('Upload Error:', error);
+      alert('Upload failed. Check console for details.');
       return null;
     } finally {
       setUploading(false);
-      console.log('Upload state reset to false');
     }
   };
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
-    if (!requireAuth('upload files')) {
-      e.target.value = '';
-      return;
-    }
-    
-    console.log('File selected:', file.name, file.type, file.size);
-    
-    // Reset file input immediately to allow re-selection
+    if (!requireAuth('upload files')) { e.target.value = ''; return; }
+
     e.target.value = '';
-    
-    try {
-      const result = await handleFileUpload(file);
-      if (result) {
-        console.log('Upload result:', result);
-        if (result.type === 'image') {
-          setFormData({ ...formData, imageUrl: result.url });
-        } else {
-          setFormData({ ...formData, documentUrl: result.url, documentName: result.fileName });
-        }
-      } else {
-        console.log('Upload returned null');
-      }
-    } catch (error) {
-      console.error('Error in handleFileChange:', error);
-      alert('An error occurred during file upload. Please try again.');
+    const result = await handleFileUpload(file);
+    if (result) {
+      if (result.type === 'image') setFormData({ ...formData, imageUrl: result.url });
+      else setFormData({ ...formData, documentUrl: result.url, documentName: result.fileName });
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!requireAuth('submit an initiative')) {
-      return;
-    }
-    
+    if (!requireAuth('submit an initiative')) return;
+
     setSubmitting(true);
-    
     try {
-      // Map camelCase form data to snake_case database columns
       const insertData = {
         title: formData.title,
         description: formData.description,
@@ -254,450 +132,333 @@ const Initiatives = () => {
         type: formData.type || null,
         result: formData.result || null,
         impact: formData.impact || null,
-        status: 'pending', // Admin will need to approve
+        status: 'pending',
         created_at: new Date().toISOString(),
         created_by: currentUser?.email || 'anonymous',
       };
 
-      const { data, error } = await supabase
-        .from('initiatives')
-        .insert(insertData)
-        .select();
+      const { error } = await supabase.from('initiatives').insert(insertData);
+      if (error) throw error;
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
-
-              // Clear cache so new data is fetched
-              clearCache('initiatives');
-
-              setSubmitSuccess(true);
-              setFormData({
-                title: '',
-                description: '',
-                imageUrl: '',
-                documentUrl: '',
-                documentName: '',
-                type: '',
-                result: '',
-                impact: '',
-              });
-
-              setTimeout(() => {
-                setSubmitSuccess(false);
-                setShowForm(false);
-              }, 3000);
+      clearCache('initiatives');
+      setSubmitSuccess(true);
+      setFormData({ title: '', description: '', imageUrl: '', documentUrl: '', documentName: '', type: '', result: '', impact: '' });
+      setTimeout(() => { setSubmitSuccess(false); setShowForm(false); }, 3000);
     } catch (error) {
-      console.error('Error submitting initiative:', error);
-      console.error('Error details:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
-      alert(`Error submitting initiative: ${error.message || 'Please try again.'}`);
+      console.error('Submission Error:', error);
+      alert(`Error: ${error.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Filter and Sort initiatives
+  const sortedInitiatives = [...initiatives]
+    .filter(item => selectedCategory === 'All' || item.type === selectedCategory)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-undp-blue text-white py-6">
+    <div className="min-h-screen bg-gray-50/30">
+
+      {/* Compact Premium Header - UNDP Blue */}
+      <div className="bg-undp-blue text-white py-12 shadow-lg">
         <div className="section-container text-center">
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">Our Initiatives</h1>
-          <p className="text-base max-w-3xl mx-auto">
-            Discover our digital transformation initiatives that drive sustainable development
+          <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight">
+            Our Initiatives
+          </h2>
+          <div className="h-1.5 w-20 bg-white/30 mx-auto rounded-full mb-4"></div>
+          <p className="text-blue-100 text-lg max-w-2xl mx-auto leading-relaxed">
+            Driving digital transformation through sustainable, high-impact projects.
           </p>
         </div>
       </div>
 
       <div className="section-container py-8">
-        {/* Submit Initiative Form - Admin Only */}
+
+        {/* Centered Category Tabs with Smooth Animation */}
+        <div className="relative mb-10">
+          <div className="flex items-center justify-center gap-2 overflow-x-auto pb-4 no-scrollbar mask-fade-right mx-auto max-w-4xl px-4">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`relative px-6 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300 ${selectedCategory === category
+                  ? 'bg-undp-blue text-white shadow-lg shadow-blue-500/30 scale-105 z-10'
+                  : 'bg-white text-gray-500 border border-gray-100 hover:border-undp-blue/30 hover:text-undp-blue hover:bg-white hover:shadow-md'
+                  }`}
+              >
+                {category}
+                {/* Animated Active Indicator */}
+                {selectedCategory === category && (
+                  <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-undp-blue rounded-full opacity-0 animate-pulse"></span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Admin Action Button (Floating for Admin only) */}
         {currentUser?.isAdmin && (
-          <div className="mb-8">
-            {!showForm ? (
-              <div className="mb-6">
-                <button
-                  onClick={() => {
-                    if (requireAuth('submit a new initiative')) {
-                      setShowForm(true);
-                    }
-                  }}
-                  className="btn-primary inline-flex items-center space-x-2"
-                >
-                  <Plus size={20} />
-                  <span>Submit New Initiative</span>
-                </button>
-              </div>
-            ) : (
-            <div className="max-w-3xl mx-auto card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg sm:text-xl font-bold text-undp-blue">Submit New Initiative</h2>
-                <button
-                  onClick={() => {
-                    setShowForm(false);
-                    setFormData({
-                      title: '',
-                      description: '',
-                      imageUrl: '',
-                      type: '',
-                      result: '',
-                      impact: '',
-                    });
-                  }}
-                  className="text-gray-500 hover:text-gray-700 p-1"
-                  aria-label="Close form"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              {submitSuccess && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2 text-green-700">
-                  <CheckCircle size={20} />
-                  <span>Initiative submitted successfully! It will be reviewed by admin.</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    required
-                    className="w-full px-3 sm:px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-undp-blue focus:border-transparent text-base"
-                    placeholder="Enter initiative title"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Short Description *
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    required
-                    rows={4}
-                    className="w-full px-3 sm:px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-undp-blue focus:border-transparent text-base"
-                    placeholder="Enter a short description of the initiative"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Image
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      disabled={uploading}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <label
-                      htmlFor="image-upload"
-                      className={`btn-secondary cursor-pointer flex items-center justify-center space-x-2 py-2.5 min-h-[44px] ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {uploading ? (
-                        <>
-                          <LoadingSpinner size="sm" />
-                          <span>Uploading...</span>
-                        </>
-                      ) : (
-                        <>
-                          <ImageIcon size={18} />
-                          <span>Upload Image</span>
-                        </>
-                      )}
-                    </label>
-                    {formData.imageUrl && (
-                      <div className="relative">
-                        <img
-                          src={formData.imageUrl}
-                          alt="Preview"
-                          className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, imageUrl: '' })}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Document/PDF (Optional)
-                  </label>
-                  <div className="flex items-center space-x-4 flex-wrap">
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
-                      onChange={handleFileChange}
-                      disabled={uploading}
-                      className="hidden"
-                      id="document-upload"
-                    />
-                    <label
-                      htmlFor="document-upload"
-                      className={`btn-secondary cursor-pointer flex items-center justify-center space-x-2 py-2.5 min-h-[44px] ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {uploading ? (
-                        <>
-                          <LoadingSpinner size="sm" />
-                          <span>Uploading...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload size={18} />
-                          <span>Upload Document</span>
-                        </>
-                      )}
-                    </label>
-                    {formData.documentUrl && (
-                      <div className="flex items-center space-x-2 px-3 py-2 bg-undp-light-grey rounded-lg">
-                        <FileText size={18} className="text-undp-blue" />
-                        <span className="text-sm text-gray-700">{formData.documentName || 'Document'}</span>
-                        <a
-                          href={formData.documentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-undp-blue hover:underline text-sm"
-                        >
-                          View
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, documentUrl: '', documentName: '' })}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Supported: PDF, DOC, DOCX, TXT, XLS, XLSX (Max 10MB)</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Initiative Type *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    required
-                    className="w-full px-3 sm:px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-undp-blue focus:border-transparent text-base min-h-[44px]"
-                    placeholder="e.g., Digital Transformation, Capacity Building"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Result
-                  </label>
-                  <textarea
-                    value={formData.result}
-                    onChange={(e) => setFormData({ ...formData, result: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 sm:px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-undp-blue focus:border-transparent text-base min-h-[44px]"
-                    placeholder="Describe the results achieved"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Impact *
-                  </label>
-                  <textarea
-                    value={formData.impact}
-                    onChange={(e) => setFormData({ ...formData, impact: e.target.value })}
-                    required
-                    rows={3}
-                    className="w-full px-3 sm:px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-undp-blue focus:border-transparent text-base"
-                    placeholder="Describe the impact of this initiative"
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      setFormData({
-                        title: '',
-                        description: '',
-                        imageUrl: '',
-                        type: '',
-                        result: '',
-                        impact: '',
-                      });
-                    }}
-                    className="btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting || uploading}
-                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-                  >
-                    {submitting ? (
-                      <>
-                        <LoadingSpinner size="sm" />
-                        <span>Submitting...</span>
-                      </>
-                    ) : (
-                      <span>Submit Initiative</span>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+          <div className="flex justify-center md:justify-end mb-8">
+            <button
+              onClick={() => requireAuth('submit a new initiative') && setShowForm(true)}
+              className="btn-primary inline-flex items-center space-x-2 py-2 px-5 text-sm shadow-md transition-transform hover:-translate-y-0.5"
+            >
+              <Plus size={18} />
+              <span>New Initiative</span>
+            </button>
           </div>
         )}
 
-        {/* Initiatives Tree Format */}
-        <div className="flex flex-col sm:flex-row items-center justify-end mb-6">
-          {availableYears.length > 0 && (
-            <div className="flex gap-2">
-              <button
-                onClick={expandAllYears}
-                className="text-sm px-4 py-2 bg-undp-light-grey text-undp-blue rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Expand All
-              </button>
-              <button
-                onClick={collapseAllYears}
-                className="text-sm px-4 py-2 bg-undp-light-grey text-undp-blue rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Collapse All
-              </button>
-            </div>
-          )}
-        </div>
+        {/* PREMIUM Submit Form Modal */}
+        {showForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-300 relative border border-gray-100">
 
-        {loading && initiatives.length === 0 ? (
-          <SkeletonLoader type="card" count={6} />
-        ) : availableYears.length > 0 ? (
-          <div className="max-w-4xl mx-auto space-y-2">
-            {availableYears.map((year) => {
-              const yearInitiatives = initiativesByYear[year] || [];
-              const isExpanded = expandedYears.includes(year);
-              
-              return (
-                <div key={year} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  {/* Year Header - Clickable */}
-                  <button
-                    onClick={() => toggleYear(year)}
-                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-undp-light-grey transition-colors text-left"
-                  >
-                    <div className="flex items-center space-x-3">
-                      {isExpanded ? (
-                        <ChevronDown className="text-undp-blue" size={20} />
-                      ) : (
-                        <ChevronRight className="text-undp-blue" size={20} />
-                      )}
-                      <h3 className="text-xl font-bold text-undp-blue">
-                        {year}
-                      </h3>
-                      <span className="text-sm text-gray-500 bg-undp-light-grey px-3 py-1 rounded-full">
-                        {yearInitiatives.length} initiative{yearInitiatives.length !== 1 ? 's' : ''}
-                      </span>
+              {/* Header */}
+              <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 px-8 py-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 tracking-tight">New Initiative</h2>
+                  <p className="text-sm text-gray-500 mt-1">Submit a new project for review</p>
+                </div>
+                <button
+                  onClick={() => setShowForm(false)}
+                  className="p-2 rounded-full bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors duration-200"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-8">
+                {submitSuccess && (
+                  <div className="mb-8 p-4 bg-green-50 border border-green-100 rounded-2xl flex items-center gap-4 text-green-700 animate-in slide-in-from-top-2">
+                    <div className="bg-green-100 p-2 rounded-full shadow-sm text-green-600"><CheckCircle size={20} /></div>
+                    <div>
+                      <h4 className="font-bold text-sm">Successfully Submitted!</h4>
+                      <p className="text-xs opacity-90">Your initiative is now pending approval.</p>
                     </div>
-                  </button>
+                  </div>
+                )}
 
-                  {/* Year Initiatives - Expandable */}
-                  {isExpanded && (
-                    <div className="border-t border-gray-200">
-                      {yearInitiatives.length > 0 ? (
-                        <div className="divide-y divide-gray-100">
-                          {yearInitiatives.map((initiative, index) => (
-                            <div
-                              key={initiative.id}
-                              className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                <form onSubmit={handleSubmit} className="space-y-6">
+
+                  {/* Title & Type */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Title *</label>
+                      <input
+                        type="text"
+                        value={formData.title}
+                        onChange={e => setFormData({ ...formData, title: e.target.value })}
+                        required
+                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium"
+                        placeholder="Enter project title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Type / Category *</label>
+                      <input
+                        type="text"
+                        value={formData.type}
+                        onChange={e => setFormData({ ...formData, type: e.target.value })}
+                        required
+                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium"
+                        placeholder="e.g. AI, Governance"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Description *</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={e => setFormData({ ...formData, description: e.target.value })}
+                      required
+                      rows={4}
+                      className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm leading-relaxed"
+                      placeholder="Describe the initiative, its goals, and methodology..."
+                    />
+                  </div>
+
+                  {/* Uploads */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Image Upload */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cover Image</label>
+                      <div className="relative group">
+                        <label className={`flex flex-col items-center justify-center gap-3 h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                          <div className="p-2 bg-gray-100 rounded-full group-hover:bg-white group-hover:shadow-sm transition-all">
+                            <ImageIcon size={20} className="text-gray-400 group-hover:text-blue-500" />
+                          </div>
+                          <span className="text-xs text-gray-500 font-medium">{formData.imageUrl ? 'Change Image' : 'Upload Image'}</span>
+                          <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
+                        </label>
+                        {formData.imageUrl && (
+                          <div className="absolute inset-0 bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+                            <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); setFormData({ ...formData, imageUrl: '' }); }}
+                              className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-full text-red-500 hover:bg-red-50 transition-colors shadow-sm"
                             >
-                              <div className="flex items-start space-x-4">
-                                {/* Initiative Number */}
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-undp-blue text-white flex items-center justify-center font-semibold text-sm">
-                                  {index + 1}
-                                </div>
-                                
-                                {/* Initiative Content */}
-                                <div className="flex-1 min-w-0">
-                                  {initiative.imageUrl && (
-                                    <div className="relative overflow-hidden rounded-lg mb-3 max-w-xs">
-                                      <img
-                                        src={initiative.imageUrl}
-                                        alt={initiative.title}
-                                        className="w-full h-32 object-cover"
-                                        loading="lazy"
-                                      />
-                                      {initiative.type && (
-                                        <div className="absolute top-2 right-2">
-                                          <span className="bg-white text-undp-blue px-2 py-1 rounded-full text-xs font-semibold">
-                                            {initiative.type}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  <h4 className="text-lg font-semibold text-undp-blue mb-1">{initiative.title}</h4>
-                                  {initiative.description && (
-                                    <p className="text-gray-600 text-sm line-clamp-2 mb-2">{initiative.description}</p>
-                                  )}
-                                  {initiative.impact && (
-                                    <p className="text-gray-600 text-xs line-clamp-1 mb-2">
-                                      <span className="font-semibold">Impact: </span>{initiative.impact}
-                                    </p>
-                                  )}
-                                  <Link
-                                    to={`/initiatives/${initiative.id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-undp-blue hover:text-undp-dark-blue text-sm font-medium inline-flex items-center space-x-1 mt-2"
-                                  >
-                                    <span>Read More</span>
-                                    <ExternalLink size={14} />
-                                  </Link>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Doc Upload */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Document (PDF)</label>
+                      <label className={`flex flex-col items-center justify-center gap-3 h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="p-2 bg-gray-100 rounded-full group-hover:bg-white group-hover:shadow-sm transition-all">
+                          <Upload size={20} className="text-gray-400 group-hover:text-blue-500" />
                         </div>
-                      ) : (
-                        <div className="px-6 py-4 text-center text-gray-500">
-                          No initiatives for {year}
+                        <span className="text-xs text-gray-500 font-medium">Upload Report/PDF</span>
+                        <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} disabled={uploading} />
+                      </label>
+                      {formData.documentUrl && (
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl mt-2 animate-in fade-in">
+                          <div className="bg-white p-2 rounded-lg text-blue-500 shadow-sm"><FileText size={16} /></div>
+                          <span className="text-xs font-medium text-blue-900 truncate flex-1">{formData.documentName || 'Document attached'}</span>
+                          <button type="button" onClick={() => setFormData({ ...formData, documentUrl: '', documentName: '' })} className="text-blue-400 hover:text-red-500">
+                            <X size={16} />
+                          </button>
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Impact */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Key Impact & Results</label>
+                    <div className="relative">
+                      <textarea
+                        value={formData.impact}
+                        onChange={e => setFormData({ ...formData, impact: e.target.value })}
+                        required
+                        rows={2}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                        placeholder="e.g. Impacted 5,000+ farmers..."
+                      />
+                      <CheckCircle size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                    </div>
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="flex items-center justify-end gap-4 pt-6 mt-2 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting || uploading}
+                      className="btn-primary px-8 py-2.5 rounded-xl shadow-lg shadow-blue-600/20 text-sm font-bold flex items-center gap-2 group"
+                    >
+                      {submitting || uploading ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />}
+                      <span>{submitting ? 'Submitting...' : 'Create Initiative'}</span>
+                    </button>
+                  </div>
+
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Unified Grid Layout - Professional News Style */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <SkeletonLoader type="card" count={3} />
+          </div>
+        ) : sortedInitiatives.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
+            {sortedInitiatives.map((initiative) => (
+              <div
+                key={initiative.id}
+                className="group flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300"
+              >
+                {/* Card Image - 16:9 Aspect Ratio with Fallback */}
+                <div className="relative aspect-video overflow-hidden bg-gray-100 border-b border-gray-100">
+                  {initiative.imageUrl ? (
+                    <img
+                      src={initiative.imageUrl}
+                      alt={initiative.title}
+                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50">
+                      <div className="p-4 bg-white rounded-full shadow-sm">
+                        <ImageIcon className="text-gray-300 w-8 h-8" />
+                      </div>
                     </div>
                   )}
+                  {/* Overlay Gradient on Hover */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                  {/* Floating Date Badge (Top Left) */}
+                  <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded text-xs font-bold text-gray-600 shadow-sm flex items-center gap-1">
+                    <Calendar size={12} className="text-undp-blue" />
+                    {new Date(initiative.created_at).getFullYear()}
+                  </div>
                 </div>
-              );
-            })}
+
+                {/* Card Content */}
+                <div className="flex flex-col flex-1 p-6">
+
+                  {/* Meta Row: Type Badge */}
+                  {initiative.type && (
+                    <div className="mb-3">
+                      <span className="inline-block px-2.5 py-1 bg-blue-50 text-undp-blue text-[10px] uppercase tracking-wider font-bold rounded-md">
+                        {initiative.type}
+                      </span>
+                    </div>
+                  )}
+
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-undp-blue transition-colors leading-snug line-clamp-2">
+                    {initiative.title}
+                  </h3>
+
+                  <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">
+                    {initiative.description}
+                  </p>
+
+                  <div className="mt-auto pt-4 flex items-center justify-between border-t border-gray-50">
+                    {initiative.impact && (
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-green-700 max-w-[65%]">
+                        <CheckCircle size={14} className="shrink-0 text-green-600" />
+                        <span className="truncate" title={initiative.impact}>{initiative.impact}</span>
+                      </div>
+                    )}
+
+                    <Link
+                      to={`/initiatives/${initiative.id}`}
+                      className="group/link inline-flex items-center gap-1.5 text-sm font-bold text-undp-blue hover:text-undp-dark-blue transition-colors ml-auto"
+                    >
+                      <span>Read More</span>
+                      <ArrowRight size={16} className="transform group-hover/link:translate-x-1 transition-transform" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No initiatives found. Check back soon!</p>
+          <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+            <Filter className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+            <h3 className="text-lg font-medium text-gray-900">No initiatives found</h3>
+            <p className="mt-1 text-sm text-gray-500">Try selecting a different category.</p>
           </div>
         )}
       </div>
-
     </div>
   );
 };

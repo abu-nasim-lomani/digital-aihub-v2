@@ -1,57 +1,41 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { supabase } from '../supabase/config';
 import { fetchCollection } from '../utils/supabaseHelpers';
-import { getCachedData } from '../utils/cache';
+import {
+  Plus, X, CheckCircle, Upload, ChevronRight, ExternalLink,
+  ArrowRight, Search, Filter, LayoutGrid, List, Briefcase,
+  TrendingUp, Users, DollarSign, Clock, FileText, Loader2
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-
-import { Download, FileText, Plus, X, CheckCircle, Upload, ChevronDown, ChevronRight, ExternalLink, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SkeletonLoader from '../components/SkeletonLoader';
 import Modal from '../components/Modal';
 
+// Helper for deterministic project images
+const getProjectImage = (title) => {
+  if (!title) return 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800';
+  const t = title.toLowerCase();
+  if (t.includes('infra') || t.includes('network')) return 'https://images.unsplash.com/photo-1558494949-ef2a278812bc?auto=format&fit=crop&q=80&w=800';
+  if (t.includes('ai') || t.includes('data')) return 'https://images.unsplash.com/photo-1518932945647-7a1c969f8be2?auto=format&fit=crop&q=80&w=800';
+  if (t.includes('gov') || t.includes('policy')) return 'https://images.unsplash.com/photo-1541872703-74c59669c478?auto=format&fit=crop&q=80&w=800';
+  if (t.includes('health')) return 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800';
+  if (t.includes('edu') || t.includes('school')) return 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800';
+  return 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800'; // Generic Office
+};
+
 const Projects = () => {
   const { currentUser } = useAuth();
-
-  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
-  const [expandedYears, setExpandedYears] = useState([]); // Track expanded years in tree view
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [showSupportForm, setShowSupportForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  const [showSupportRequestForm, setShowSupportRequestForm] = useState(false);
-
-  const [submittingSupportRequest, setSubmittingSupportRequest] = useState(false);
-
-  const [uploadingSupportRequest, setUploadingSupportRequest] = useState(false);
-
-  const [supportRequestSuccess, setSupportRequestSuccess] = useState(false);
-
-  const [modalConfig, setModalConfig] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    type: 'info',
-    actionLabel: null,
-    onAction: null
-  });
-
-  const showModal = ({ title, message, type = 'info', actionLabel = null, onAction = null }) => {
-    setModalConfig({
-      isOpen: true,
-      title,
-      message,
-      type,
-      actionLabel,
-      onAction
-    });
-  };
-
-  const closeModal = () => {
-    setModalConfig(prev => ({ ...prev, isOpen: false }));
-  };
-
-  const [supportRequestData, setSupportRequestData] = useState({
+  // Form State
+  const [supportData, setSupportData] = useState({
     title: '',
     projectId: '',
     supportType: '',
@@ -60,607 +44,354 @@ const Projects = () => {
     impact: '',
   });
 
-  const fetchProjects = async () => {
-    try {
-      const data = await fetchCollection('projects', { status: 'published' });
-      // Map snake_case to camelCase for display
-      const mappedData = data.map(proj => ({
-        ...proj,
-        supportType: proj.support_type || proj.supportType,
-        documentUrl: proj.document_url || proj.documentUrl,
-      }));
-      setProjects(mappedData);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+
+  const [supportStats, setSupportStats] = useState({ total: 0, completed: 0 });
 
   useEffect(() => {
-    // Check cache synchronously first for instant display
-    const cacheKey = `projects_${JSON.stringify({ status: 'published' })}_all`;
-    const cached = getCachedData(cacheKey, true);
+    const fetchProjects = async () => {
+      try {
+        const data = await fetchCollection('projects', { status: 'published' });
 
-    if (cached) {
-      // Map snake_case to camelCase for display
-      const mappedCached = cached.map(proj => ({
-        ...proj,
-        supportType: proj.support_type || proj.supportType,
-        documentUrl: proj.document_url || proj.documentUrl,
-      }));
-      setProjects(mappedCached);
-      setLoading(false);
-    }
+        // Fetch support stats per project
+        const { data: supportData } = await supabase.from('support_requests').select('project_id, status');
+
+        const processed = data.map(p => {
+          const pRequests = supportData ? supportData.filter(r => r.project_id === p.id) : [];
+          const ongoing = pRequests.filter(r => r.status !== 'resolved').length;
+          const completed = pRequests.filter(r => r.status === 'resolved').length;
+
+          return {
+            ...p,
+            imageUrl: getProjectImage(p.title),
+            status: p.status === 'published' ? 'Active' : 'Completed',
+            ongoingSupport: ongoing,
+            completedSupport: completed
+          };
+        });
+        setProjects(processed);
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchSupportStats = async () => {
+      const { count: total } = await supabase.from('support_requests').select('*', { count: 'exact', head: true });
+      const { count: completed } = await supabase.from('support_requests').select('*', { count: 'exact', head: true }).eq('status', 'resolved');
+      setSupportStats({ total: total || 0, completed: completed || 0 });
+    };
 
     fetchProjects();
+    fetchSupportStats();
   }, []);
 
-  // Extract year from created_at and group projects by year
-  const getYearFromDate = (dateString) => {
-    if (!dateString) return null;
+  // Updated Stats Logic
+  const stats = [
+    { label: 'Ongoing Project', value: projects.length, icon: Briefcase, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Total Project', value: projects.length, icon: Users, color: 'text-green-500', bg: 'bg-green-50' },
+    { label: 'Total Support Request', value: supportStats.total, icon: FileText, color: 'text-purple-500', bg: 'bg-purple-50' },
+    { label: 'Partners', value: '18', icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-50' },
+    { label: 'Total Complete Support Request', value: supportStats.completed, icon: CheckCircle, color: 'text-teal-500', bg: 'bg-teal-50' },
+  ];
+
+  // Filtering
+  const filteredProjects = projects.filter(p => filterStatus === 'All' || p.status === filterStatus);
+
+  // Handlers (Support Request)
+  const handleRequestSupport = (project) => {
+    if (!currentUser) return setModalConfig({ isOpen: true, title: 'Login Required', message: 'Sign in to request support.', type: 'info' });
+    setSupportData(prev => ({ ...prev, projectId: project.id }));
+    setShowSupportForm(true);
+    // Scroll to top of modal if needed, or just open it.
+  };
+
+  const handleSupportSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentUser) return setModalConfig({ isOpen: true, title: 'Login Required', message: 'Please login to submit.', type: 'warning' });
+
+    setSubmitting(true);
     try {
-      const date = new Date(dateString);
-      return date.getFullYear();
-    } catch {
-      return null;
-    }
-  };
-
-  // Group projects by year
-  const projectsByYear = projects.reduce((acc, proj) => {
-    const year = getYearFromDate(proj.created_at);
-    if (year) {
-      if (!acc[year]) {
-        acc[year] = [];
-      }
-      acc[year].push(proj);
-    }
-    return acc;
-  }, {});
-
-  // Dynamic years generation
-  const currentYear = new Date().getFullYear();
-  const minYear = 2023; // Project start year
-  const requiredYears = Array.from(
-    { length: currentYear - minYear + 1 },
-    (_, i) => currentYear - i
-  );
-
-  // Get years from projects
-  const yearsFromProjects = Object.keys(projectsByYear)
-    .map(Number)
-    .sort((a, b) => b - a); // Descending order
-
-  // Combine required years with years from projects, remove duplicates, and sort descending
-  const availableYears = [...new Set([...requiredYears, ...yearsFromProjects])]
-    .sort((a, b) => b - a);
-
-  // Toggle year expansion in tree view
-  const toggleYear = (year) => {
-    setExpandedYears(prev =>
-      prev.includes(year)
-        ? prev.filter(y => y !== year)
-        : [...prev, year]
-    );
-  };
-
-  // Expand/Collapse all years
-  const expandAllYears = () => {
-    setExpandedYears(availableYears);
-  };
-
-  const collapseAllYears = () => {
-    setExpandedYears([]);
-  };
-
-  // Expand first year by default when projects are loaded
-  useEffect(() => {
-    if (availableYears.length > 0 && expandedYears.length === 0 && !loading) {
-      setExpandedYears([availableYears[0]]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects.length, loading]);
-
-  const handleDocumentUpload = async (file) => {
-    if (!file) return null;
-
-    // Validate file size (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      showModal({
-        title: 'File Too Large',
-        message: 'Please upload a file smaller than 10MB.',
-        type: 'error'
+      const { error } = await supabase.from('support_requests').insert({
+        ...supportData,
+        project_id: supportData.projectId || null,
+        created_at: new Date().toISOString(),
+        created_by: currentUser.email,
+        status: 'pending'
       });
-      return null;
-    }
+      if (error) throw error;
 
-    try {
-      const filePath = `projects/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const { error: uploadError } = await supabase.storage
-        .from('files')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('files')
-        .getPublicUrl(filePath);
-
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      showModal({
-        title: 'Upload Failed',
-        message: error.message || 'Please try again',
-        type: 'error'
-      });
-      return null;
+      setSubmitSuccess(true);
+      setSupportData({ title: '', projectId: '', supportType: '', documentUrl: '', duration: '', impact: '' });
+      setTimeout(() => { setSubmitSuccess(false); setShowSupportForm(false); }, 3000);
+    } catch (err) {
+      setModalConfig({ isOpen: true, title: 'Error', message: err.message, type: 'error' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
-
-
-  const handleSupportRequestFileChange = async (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    if (!currentUser) {
-      showModal({
-        title: 'Authentication Required',
-        message: 'You need to be logged in to upload files.',
-        type: 'warning'
-      });
-      e.target.value = '';
-      return;
-    }
-
-    setUploadingSupportRequest(true);
+    setUploading(true);
     try {
-      const url = await handleDocumentUpload(file);
-      if (url) {
-        setSupportRequestData({ ...supportRequestData, documentUrl: url });
-      }
+      const path = `support/${Date.now()}_${file.name}`;
+      await supabase.storage.from('files').upload(path, file);
+      const { data } = supabase.storage.from('files').getPublicUrl(path);
+      setSupportData({ ...supportData, documentUrl: data.publicUrl });
+    } catch (err) {
+      console.error(err);
     } finally {
-      setUploadingSupportRequest(false);
+      setUploading(false);
     }
   };
-
-  const handleSupportRequestSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!currentUser) {
-      showModal({
-        title: 'Authentication Required',
-        message: 'You need to be logged in to submit a support request. Would you like to login now?',
-        type: 'info',
-        actionLabel: 'Log In',
-        onAction: () => {
-          const currentPath = window.location.pathname;
-          navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
-          closeModal();
-        }
-      });
-      return;
-    }
-
-    setSubmittingSupportRequest(true);
-
-    try {
-      const insertData = {
-        title: supportRequestData.title,
-        project_id: supportRequestData.projectId || null,
-        support_type: supportRequestData.supportType || null,
-        document_url: supportRequestData.documentUrl || null,
-        duration: supportRequestData.duration || null,
-        impact: supportRequestData.impact || null,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        created_by: currentUser?.email || 'anonymous',
-      };
-
-      const { error } = await supabase
-        .from('support_requests')
-        .insert(insertData)
-        .select();
-
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
-
-      setSupportRequestSuccess(true);
-      setSupportRequestData({
-        title: '',
-        projectId: '',
-        supportType: '',
-        documentUrl: '',
-        duration: '',
-        impact: '',
-      });
-
-      setShowSupportRequestForm(false);
-      showModal({
-        title: 'Request Submitted!',
-        message: 'Your support request has been submitted successfully. An admin will review it shortly.',
-        type: 'success'
-      });
-
-    } catch (error) {
-      console.error('Error submitting support request:', error);
-      showModal({
-        title: 'Submission Failed',
-        message: `Error: ${error.message || error.details || 'Unknown error occurred'}`,
-        type: 'error'
-      });
-    } finally {
-      setSubmittingSupportRequest(false);
-    }
-  };
-
-
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-undp-blue text-white py-6">
-        <div className="section-container text-center">
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">Projects & Supports</h1>
-          <p className="text-base max-w-3xl mx-auto">
-            Explore our portfolio of digital transformation projects and support initiatives
-          </p>
+    <div className="min-h-screen bg-gray-50/50">
+      <Modal {...modalConfig} onClose={() => setModalConfig({ ...modalConfig, isOpen: false })} />
+
+      {/* Premium Header */}
+      <div className="bg-[#003359] text-white pt-20 pb-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(45deg,#002845_25%,transparent_25%,transparent_75%,#002845_75%,#002845),linear-gradient(45deg,#002845_25%,transparent_25%,transparent_75%,#002845_75%,#002845)] bg-[length:20px_20px] opacity-[0.05]"></div>
+        <div className="section-container relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+              <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-bold tracking-widest uppercase mb-4">
+                Portfolio & Support
+              </span>
+              <h1 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Projects & Supports</h1>
+              <p className="text-blue-100 text-lg max-w-xl leading-relaxed">
+                Explore our portfolio of digital transformation projects and support initiatives
+              </p>
+            </div>
+
+            <button
+              onClick={() => currentUser ? setShowSupportForm(true) : setModalConfig({ isOpen: true, title: 'Login Required', message: 'Sign in to request support.', type: 'info' })}
+              className="bg-white text-[#003359] hover:bg-blue-50 font-bold py-3.5 px-8 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all duration-300 transform hover:scale-105 flex items-center gap-3 animate-in slide-in-from-right-8"
+            >
+              <Plus size={22} className="stroke-[3px]" />
+              <span className="text-base tracking-wide uppercase">Request Support</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <Modal
-        isOpen={modalConfig.isOpen}
-        onClose={closeModal}
-        title={modalConfig.title}
-        message={modalConfig.message}
-        type={modalConfig.type}
-        actionLabel={modalConfig.actionLabel}
-        onAction={modalConfig.onAction}
-      />
+      <div className="section-container -mt-16 pb-20 relative z-20">
 
-      <div className="section-container py-12">
-        {/* Support Request Form - Visible to all users except admins */}
-        <div className="mb-8">
-          {!showSupportRequestForm ? (
-            <div className="text-center">
-              <button
-                onClick={() => {
-                  if (!currentUser) {
-                    showModal({
-                      title: 'Authentication Required',
-                      message: 'You need to be logged in to submit a support request. Would you like to login now?',
-                      type: 'info',
-                      actionLabel: 'Log In',
-                      onAction: () => {
-                        const currentPath = window.location.pathname;
-                        navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
-                        closeModal();
-                      }
-                    });
-                  } else {
-                    setShowSupportRequestForm(true);
-                  }
-                }}
-                className="btn-primary inline-flex items-center space-x-2"
-              >
-                <Plus size={20} />
-                <span>Support Request</span>
-              </button>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 max-w-4xl mx-auto animate-in fade-in zoom-in-95 duration-300">
-              <div className="flex items-center justify-between mb-8 border-b border-gray-100 pb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Submit Support Request</h2>
-                  <p className="text-gray-500 mt-1">Tell us how we can help you with your project</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowSupportRequestForm(false);
-                    setSupportRequestData({
-                      title: '',
-                      projectId: '',
-                      supportType: '',
-                      documentUrl: '',
-                      duration: '',
-                      impact: '',
-                    });
-                    setSupportRequestSuccess(false);
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
-                  aria-label="Close form"
-                >
-                  <X size={24} />
-                </button>
+        {/* Dashboard Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
+          {stats.map((stat, idx) => (
+            <div key={idx} className="bg-white p-3.5 rounded-2xl shadow-lg border border-gray-100 flex items-center justify-between group hover:-translate-y-1 transition-transform">
+              <div>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">{stat.label}</p>
+                <h3 className="text-xl font-bold text-gray-900">{stat.value}</h3>
               </div>
-
-              {supportRequestSuccess && (
-                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center space-x-3 text-green-700">
-                  <CheckCircle size={24} />
-                  <span className="font-medium">Support request submitted successfully! Awaiting admin approval.</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSupportRequestSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <label htmlFor="supportRequestProject" className="text-sm font-semibold text-gray-700 block">Related Project (Optional)</label>
-                  <select
-                    id="supportRequestProject"
-                    value={supportRequestData.projectId}
-                    onChange={(e) => setSupportRequestData({ ...supportRequestData, projectId: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-undp-blue/20 focus:border-undp-blue outline-none transition-all appearance-none"
-                  >
-                    <option value="">Select a Project</option>
-                    {projects.map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label htmlFor="supportRequestTitle" className="text-sm font-semibold text-gray-700 block">Request Title <span className="text-red-500">*</span></label>
-                    <input
-                      id="supportRequestTitle"
-                      type="text"
-                      value={supportRequestData.title}
-                      onChange={(e) => setSupportRequestData({ ...supportRequestData, title: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-undp-blue/20 focus:border-undp-blue outline-none transition-all"
-                      placeholder="e.g. Technical Consultation for AI"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="supportRequestType" className="text-sm font-semibold text-gray-700 block">Support Type <span className="text-red-500">*</span></label>
-                    <select
-                      id="supportRequestType"
-                      value={supportRequestData.supportType}
-                      onChange={(e) => setSupportRequestData({ ...supportRequestData, supportType: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-undp-blue/20 focus:border-undp-blue outline-none transition-all appearance-none"
-                    >
-                      <option value="">Select Type</option>
-                      <option value="Architecture Development">Architecture Development</option>
-                      <option value="Consultancy">Consultancy</option>
-                      <option value="Technical Support">Technical Support</option>
-                      <option value="Capacity Building">Capacity Building</option>
-                      <option value="Training">Training</option>
-                      <option value="Research & Development">Research & Development</option>
-                      <option value="Implementation">Implementation</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="supportRequestImpact" className="text-sm font-semibold text-gray-700 block">Description & Impact <span className="text-red-500">*</span></label>
-                  <textarea
-                    id="supportRequestImpact"
-                    value={supportRequestData.impact}
-                    onChange={(e) => setSupportRequestData({ ...supportRequestData, impact: e.target.value })}
-                    required
-                    rows="4"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-undp-blue/20 focus:border-undp-blue outline-none transition-all"
-                    placeholder="Describe your needs and expected outcomes..."
-                  ></textarea>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label htmlFor="supportRequestDuration" className="text-sm font-semibold text-gray-700 block">Duration</label>
-                    <input
-                      id="supportRequestDuration"
-                      type="text"
-                      value={supportRequestData.duration}
-                      onChange={(e) => setSupportRequestData({ ...supportRequestData, duration: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-undp-blue/20 focus:border-undp-blue outline-none transition-all"
-                      placeholder="e.g. 3 months"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="supportRequestDocument" className="text-sm font-semibold text-gray-700 block">Attachment (Optional)</label>
-                    <div className="relative group">
-                      <input
-                        id="supportRequestDocument"
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleSupportRequestFileChange}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      />
-                      <div className="w-full px-4 py-3 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-gray-500 flex items-center gap-3 group-hover:bg-gray-100 transition-all group-hover:border-undp-blue/50">
-                        <div className="bg-white p-1.5 rounded-md shadow-sm border border-gray-100 text-undp-blue">
-                          <Upload size={16} />
-                        </div>
-                        <span className="truncate text-sm font-medium">{supportRequestData.documentUrl ? 'File Selected' : 'Click to upload (PDF, DOC)'}</span>
-                      </div>
-                    </div>
-                    {supportRequestData.documentUrl && (
-                      <div className="flex items-center gap-2 mt-2 text-sm text-green-600 bg-green-50 w-fit px-3 py-1 rounded-full border border-green-100">
-                        <CheckCircle size={14} />
-                        <span>Document ready</span>
-                        <button type="button" onClick={() => setSupportRequestData({ ...supportRequestData, documentUrl: '' })} className="ml-2 text-red-500 hover:text-red-700 font-bold">×</button>
-                      </div>
-                    )}
-                    {uploadingSupportRequest && <p className="text-xs text-blue-600 mt-1 animate-pulse">Uploading...</p>}
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-6 gap-3 border-t border-gray-100 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowSupportRequestForm(false);
-                      setSupportRequestData({
-                        title: '',
-                        projectId: '',
-                        supportType: '',
-                        documentUrl: '',
-                        duration: '',
-                        impact: '',
-                      });
-                      setSupportRequestSuccess(false);
-                    }}
-                    className="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors focus:ring-2 focus:ring-gray-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingSupportRequest || uploadingSupportRequest}
-                    className="px-8 py-2.5 bg-undp-blue text-white rounded-lg hover:bg-blue-800 font-medium shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:ring-2 focus:ring-offset-2 focus:ring-undp-blue"
-                  >
-                    {submittingSupportRequest ? (
-                      <>
-                        <LoadingSpinner size="sm" color="white" />
-                        <span>Submitting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Submit Request</span>
-                        <ArrowRight size={18} />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
+              <div className={`p-2 rounded-xl ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform`}>
+                <stat.icon size={20} />
+              </div>
             </div>
-          )}
+          ))}
         </div>
 
-
-
-
-        {/* Expand/Collapse All */}
-        <div className="flex justify-end mb-4 space-x-4">
-          <button
-            onClick={expandAllYears}
-            className="text-sm text-undp-blue hover:text-blue-800 font-semibold"
-          >
-            Expand All
-          </button>
-          <button
-            onClick={collapseAllYears}
-            className="text-sm text-undp-blue hover:text-blue-800 font-semibold"
-          >
-            Collapse All
-          </button>
+        {/* Filter Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mb-8 pb-2">
+          {['All', 'Active', 'Completed', 'Pipeline'].map(status => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${filterStatus === status
+                ? 'bg-white text-undp-blue shadow-md border-b-2 border-undp-blue'
+                : 'text-gray-500 hover:bg-gray-100'
+                }`}
+            >
+              {status}
+            </button>
+          ))}
         </div>
 
-        {/* Projects List Tree View */}
+        {/* Projects Grid */}
         {loading ? (
-          <div className="space-y-4">
-            <SkeletonLoader type="list-item" />
-            <SkeletonLoader type="list-item" />
-            <SkeletonLoader type="list-item" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <SkeletonLoader type="card" count={3} />
+          </div>
+        ) : filteredProjects.length === 0 && projects.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100">
+            <Briefcase className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900">No projects found</h3>
+            <p className="text-gray-500">We are currently updating our portfolio.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {availableYears.length > 0 ? (
-              availableYears.map((year) => {
-                const yearProjects = projectsByYear[year] || [];
-                const isExpanded = expandedYears.includes(year);
-
-                return (
-
-                  <div key={year} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <div
-                      onClick={() => toggleYear(year)}
-                      className="flex items-center justify-between px-6 py-5 bg-white cursor-pointer hover:bg-gray-50 transition-colors group"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`}>
-                          <ChevronRight className="text-gray-400 group-hover:text-undp-blue transition-colors" size={24} />
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-900 group-hover:text-undp-blue transition-colors">{year}</h2>
-                      </div>
-                      <span className="bg-gray-100 text-gray-600 py-1.5 px-4 rounded-full text-sm font-semibold group-hover:bg-blue-50 group-hover:text-undp-blue transition-colors">
-                        {yearProjects.length} Projects
-                      </span>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="border-t border-gray-100">
-                        {yearProjects.length > 0 ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-8 bg-gray-50/50">
-                            {yearProjects.map((project) => (
-                              <div key={project.id} className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col h-full group transform hover:-translate-y-1">
-                                <div className="p-6 flex-grow">
-                                  <span className="inline-block px-3 py-1 bg-blue-50 text-undp-blue text-xs font-semibold rounded-full mb-3 hidden">
-                                    Project
-                                  </span>
-
-                                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-undp-blue transition-colors">
-                                    {project.title}
-                                  </h3>
-
-                                  <div className="flex items-center text-sm text-gray-500 mb-4 bg-gray-50 px-3 py-1.5 rounded-lg w-fit hidden">
-                                    <span className="font-semibold mr-2">Duration:</span> {project.duration || 'Ongoing'}
-                                  </div>
-
-                                  <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 mb-4">
-                                    {project.impact}
-                                  </p>
-                                </div>
-
-                                <div className="px-6 py-4 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between">
-                                  {project.document_url ? (
-                                    <a
-                                      href={project.document_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-gray-600 hover:text-undp-blue text-sm font-semibold flex items-center space-x-2 transition-colors"
-                                    >
-                                      <div className="p-1.5 bg-gray-100 rounded-full group-hover:bg-blue-100 transition-colors">
-                                        <Download size={14} />
-                                      </div>
-                                      <span>Download</span>
-                                    </a>
-                                  ) : (
-                                    <span className="text-gray-400 text-sm flex items-center space-x-2 cursor-not-allowed opacity-60">
-                                      <FileText size={16} />
-                                      <span>No Doc</span>
-                                    </span>
-                                  )}
-
-                                  <Link
-                                    to={`/projects/${project.id}`}
-                                    className="text-undp-blue hover:text-blue-800 text-sm font-bold flex items-center space-x-1 transition-colors group/link"
-                                  >
-                                    <span>Details</span>
-                                    <ArrowRight size={16} className="transform group-hover/link:translate-x-1 transition-transform" />
-                                  </Link>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="px-6 py-12 text-center text-gray-500 bg-gray-50">
-                            <p className="text-lg font-medium">No projects found for {year}</p>
-                            <p className="text-sm">Check back later for updates.</p>
-                          </div>
-                        )}
-                      </div>
-                    )
-                    }
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {filteredProjects.map((project) => (
+              <div key={project.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full">
+                {/* Image */}
+                <div className="relative h-56 overflow-hidden">
+                  <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                  <div className="absolute top-3 right-3 px-3 py-1 bg-white/90 backdrop-blur rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-700 shadow-sm">
+                    {project.status || 'Ongoing'}
                   </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No projects found. Check back soon!</p>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 flex flex-col flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 leading-snug group-hover:text-blue-600 transition-colors">
+                    {project.title}
+                  </h3>
+                  <p className="text-gray-500 text-sm line-clamp-3 mb-6 flex-1">
+                    {project.description || project.impact}
+                  </p>
+
+                  {/* Meta */}
+                  <div className="flex items-center gap-4 text-xs font-semibold text-gray-400 mb-4">
+                    <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded text-blue-600 bg-blue-50">
+                      <Clock size={14} /> Ongoing: {project.ongoingSupport || 0}
+                    </span>
+                    <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded text-green-600 bg-green-50">
+                      <CheckCircle size={14} /> Complete: {project.completedSupport || 0}
+                    </span>
+                  </div>
+
+                  {/* Action */}
+                  <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Link to={`/projects/${project.id}`} className="text-xs font-bold text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1">
+                        Details <ChevronRight size={14} />
+                      </Link>
+                      {project.documentUrl && (
+                        <a href={project.documentUrl} target="_blank" className="text-gray-400 hover:text-blue-600 transition-colors" title="View Document">
+                          <FileText size={16} />
+                        </a>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleRequestSupport(project)}
+                      className="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 text-xs font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-1.5"
+                    >
+                      <Plus size={14} /> Request Support
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         )}
       </div>
 
-    </div >
+      {/* Support Request Modal - Premium Style */}
+      {showSupportForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300 relative border border-gray-100">
+            <div className="sticky top-0 bg-white/95 backdrop-blur z-10 px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Request Support</h2>
+                <p className="text-sm text-gray-500">How can we assist your digital transformation?</p>
+              </div>
+              <button onClick={() => setShowSupportForm(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-8">
+              {submitSuccess && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-xl flex items-center gap-3 text-green-700">
+                  <div className="bg-green-100 p-1.5 rounded-full"><CheckCircle size={18} /></div>
+                  <span className="text-sm font-bold">Request submitted successfully!</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSupportSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Request Title *</label>
+                    <input
+                      required
+                      value={supportData.title}
+                      onChange={e => setSupportData({ ...supportData, title: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                      placeholder="Subject of your request"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Related Project (Optional)</label>
+                    <select
+                      value={supportData.projectId}
+                      onChange={(e) => setSupportData({ ...supportData, projectId: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm appearance-none"
+                    >
+                      <option value="">No Specific Project</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Support Type *</label>
+                    <select
+                      required
+                      value={supportData.supportType}
+                      onChange={e => setSupportData({ ...supportData, supportType: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm appearance-none"
+                    >
+                      <option value="">Select Type...</option>
+                      <option value="Consultancy">Consultancy</option>
+                      <option value="Technical">Technical Support</option>
+                      <option value="Training">Training & Capacity</option>
+                      <option value="Funding">Funding Support</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Expected Duration</label>
+                    <input
+                      value={supportData.duration}
+                      onChange={e => setSupportData({ ...supportData, duration: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                      placeholder="e.g. 3 Months"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Needs & Impact *</label>
+                  <textarea
+                    required
+                    rows="4"
+                    value={supportData.impact}
+                    onChange={e => setSupportData({ ...supportData, impact: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm leading-relaxed"
+                    placeholder="Describe your requirements..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Attachment</label>
+                  <label className={`flex flex-col items-center justify-center gap-2 h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <Upload size={20} className="text-gray-400" />
+                    <span className="text-xs text-gray-500 font-medium">{supportData.documentUrl ? 'File Attached' : 'Upload Document'}</span>
+                    <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                  </label>
+                  {supportData.documentUrl && <p className="text-xs text-green-600 font-bold flex items-center gap-1"><CheckCircle size={12} /> File Ready</p>}
+                </div>
+
+                <div className="flex justify-end pt-4 gap-3">
+                  <button type="button" onClick={() => setShowSupportForm(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">Cancel</button>
+                  <button type="submit" disabled={submitting || uploading} className="btn-primary px-8 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
+                    {submitting ? <Loader2 className="animate-spin" size={18} /> : <ArrowRight size={18} />}
+                    <span>{submitting ? 'Sending...' : 'Submit Request'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 };
 

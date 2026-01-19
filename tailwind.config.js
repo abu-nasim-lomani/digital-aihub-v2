@@ -12,7 +12,7 @@ export default {
         'undp-dark-blue': '#003D6B',
       },
       fontFamily: {
-        'sans': ['Open Sans', 'Roboto', 'system-ui', 'sans-serif'],
+        'sans': ['Inter', 'system-ui', 'sans-serif'],
       },
     },
   },
