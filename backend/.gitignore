@@ -1,0 +1,29 @@
+# Backend API
+
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Prisma
+prisma/migrations/

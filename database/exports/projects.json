@@ -1,0 +1,46 @@
+[
+  {
+    "id": "8ebe397f-882c-4f52-833e-e05439abd102",
+    "title": "Logic",
+    "support_type": "Software Development",
+    "document_url": null,
+    "duration": "12 Months",
+    "impact": "Developing core logic systems for enterprise management.",
+    "status": "published",
+    "created_at": "2026-01-17T12:44:29.542768+00:00",
+    "created_by": "admin"
+  },
+  {
+    "id": "a4a18484-e701-4117-b22f-7a6792bdc664",
+    "title": "Legal Aid",
+    "support_type": "Consultancy",
+    "document_url": null,
+    "duration": "Ongoing",
+    "impact": "Providing digital legal aid services to rural communities.",
+    "status": "published",
+    "created_at": "2026-01-17T12:44:29.542768+00:00",
+    "created_by": "admin"
+  },
+  {
+    "id": "4df8bbae-831a-48b1-a1d0-f3f1b4bdef29",
+    "title": "ABCV",
+    "support_type": "Research & Development",
+    "document_url": null,
+    "duration": "18 Months",
+    "impact": "Advanced biometric verification and validation research.",
+    "status": "published",
+    "created_at": "2026-01-17T12:44:29.542768+00:00",
+    "created_by": "admin"
+  },
+  {
+    "id": "625431e2-bab3-4fa5-a762-ca81598f2734",
+    "title": "ISPAT",
+    "support_type": "Infrastructure",
+    "document_url": null,
+    "duration": "24 Months",
+    "impact": "Modernizing steel production infrastructure with AI monitoring.",
+    "status": "pending",
+    "created_at": "2026-01-17T12:44:29.542768+00:00",
+    "created_by": "admin"
+  }
+]

@@ -1,220 +1,115 @@
 import { useEffect, useState } from 'react';
-import { fetchCollection } from '../utils/supabaseHelpers';
-import { Mail, Linkedin, User, MessageSquare } from 'lucide-react';
-import SkeletonLoader from '../components/SkeletonLoader';
+import { teamAPI } from '../utils/api';
+import { Mail, Linkedin, Twitter, Award, Users, Target } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Team = () => {
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [advisoryMembers, setAdvisoryMembers] = useState([]);
+  const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Demo Team Members
-  const demoTeamMembers = [
-    {
-      id: 'team-1',
-      name: 'Sheela Tasneem Haq',
-      designation: 'Senior Governance Specialist',
-      photoUrl: '',
-    },
-    {
-      id: 'team-2',
-      name: 'Dr. Forhad Zahid Shaikh',
-      designation: 'E-Governance Specialist',
-      photoUrl: '',
-    },
-    {
-      id: 'team-3',
-      name: 'Engr. Md. Hafijur Rahman',
-      designation: 'Technology Analyst',
-      photoUrl: '',
-    },
-    {
-      id: 'team-4',
-      name: 'A.K. Sabbir Mahbub',
-      designation: 'Consultant',
-      photoUrl: '',
-    },
-  ];
-
-  // Demo Advisory Members
-  const demoAdvisoryMembers = [
-    {
-      id: 'advisory-1',
-      name: 'Prof. Maria Rodriguez',
-      designation: 'Advisory Board Chair - Digital Governance',
-      photoUrl: 'https://i.pravatar.cc/150?img=60',
-    },
-    {
-      id: 'advisory-2',
-      name: 'Dr. Ahmed Hassan',
-      designation: 'Senior Advisor - Public Sector Innovation',
-      photoUrl: 'https://i.pravatar.cc/150?img=51',
-    },
-    {
-      id: 'advisory-3',
-      name: 'Dr. Emily Watson',
-      designation: 'Strategic Advisor - AI Ethics & Policy',
-      photoUrl: 'https://i.pravatar.cc/150?img=20',
-    },
-    {
-      id: 'advisory-4',
-      name: 'Prof. Kenji Tanaka',
-      designation: 'Technical Advisor - Digital Infrastructure',
-      photoUrl: 'https://i.pravatar.cc/150?img=11',
-    },
-  ];
+  const [selectedSection, setSelectedSection] = useState('all');
 
   useEffect(() => {
-    const fetchTeam = async () => {
-      try {
-        const data = await fetchCollection('team', {});
-        // Separate team and advisory members based on a type field, or use all as team
-        const fetchedTeam = data.filter(m => !m.type || m.type === 'team');
-        const fetchedAdvisory = data.filter(m => m.type === 'advisory');
-        
-        // Combine with demo data
-        setTeamMembers([...demoTeamMembers, ...fetchedTeam]);
-        setAdvisoryMembers([...demoAdvisoryMembers, ...fetchedAdvisory]);
-      } catch (error) {
-        console.error('Error fetching team:', error);
-        // If fetch fails, show demo data
-        setTeamMembers(demoTeamMembers);
-        setAdvisoryMembers(demoAdvisoryMembers);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTeam();
   }, []);
 
+  const fetchTeam = async () => {
+    try {
+      const response = await teamAPI.getAll();
+      setTeam(response.data);
+    } catch (error) {
+      console.error('Error fetching team:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sections = ['all', 'team', 'advisory'];
+
+  const filteredTeam = team.filter(member => {
+    if (selectedSection === 'all') return true;
+    return member.section === selectedSection;
+  });
+
+  const getDefaultImage = (name) => {
+    // Generate avatar based on name
+    const initial = name?.charAt(0).toUpperCase() || 'A';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=400&background=003359&color=fff&bold=true`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-undp-blue text-white py-6">
-        <div className="section-container text-center">
-          <User className="mx-auto mb-2" size={32} />
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">Team & Advisory</h1>
-          <p className="text-base max-w-3xl mx-auto">
-            Meet our dedicated team of digital transformation experts and advisors
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-[#003359] text-white pt-20 pb-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(45deg,#002845_25%,transparent_25%,transparent_75%,#002845_75%,#002845),linear-gradient(45deg,#002845_25%,transparent_25%,transparent_75%,#002845_75%,#002845)] bg-[length:20px_20px] opacity-[0.05]"></div>
+
+        <div className="section-container relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-bold tracking-widest uppercase mb-4">
+              Meet the Experts
+            </span>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight leading-tight">
+              Our Team
+            </h1>
+            <p className="text-xl text-blue-100 leading-relaxed max-w-2xl mx-auto">
+              Dedicated professionals driving digital transformation and innovation across Bangladesh
+            </p>
+          </div>
         </div>
       </div>
 
       <div className="section-container py-12">
-        {/* Message Section */}
-        <section className="mb-16">
-          <div className="flex items-center space-x-3 mb-8">
-            <div className="w-12 h-12 bg-undp-blue rounded-lg flex items-center justify-center">
-              <MessageSquare className="text-white" size={24} />
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue">Message</h2>
+        {/* Section Filter */}
+        <div className="flex items-center justify-center gap-2 mb-12">
+          {sections.map(section => (
+            <button
+              key={section}
+              onClick={() => setSelectedSection(section)}
+              className={`px-8 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all capitalize ${selectedSection === section
+                  ? 'bg-white text-undp-blue shadow-lg border-b-2 border-undp-blue'
+                  : 'text-gray-500 hover:bg-gray-100'
+                }`}
+            >
+              {section === 'all' ? 'All Members' : section === 'team' ? 'Core Team' : 'Advisory Board'}
+            </button>
+          ))}
+        </div>
+
+        {/* Team Grid */}
+        {filteredTeam.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100">
+            <Users className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900">No team members found</h3>
+            <p className="text-gray-500">Check back soon</p>
           </div>
-          
-          <div className="max-w-4xl mx-auto">
-            <div className="card bg-gradient-to-br from-undp-light-grey to-white p-6 sm:p-8 lg:p-10">
-              <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-                <div className="flex-shrink-0">
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {filteredTeam.map((member) => (
+              <div key={member.id} className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group">
+                {/* Photo */}
+                <div className="relative h-72 overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
                   <img
-                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzmekLN0RLLu70esAjL7PFsjMhGp0ba9cPOQ&s"
-                    alt="Stefan Liller"
-                    className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-undp-blue mx-auto md:mx-0"
+                    src={member.photoUrl || getDefaultImage(member.name)}
+                    alt={member.name}
+                    className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
                   />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl sm:text-2xl font-bold text-undp-blue mb-2">
-                    Stefan Liller
-                  </h3>
-                  <p className="text-lg text-gray-700 mb-4 font-semibold">
-                    Resident Representative
-                  </p>
-                  <div className="prose max-w-none">
-                    <p className="text-gray-700 leading-relaxed mb-4">
-                      Welcome to the UNDP Digital & AI Hub. As we navigate an era of unprecedented technological transformation, digital innovation has become central to achieving sustainable development goals and creating lasting impact in communities across Bangladesh.
-                    </p>
-                    <p className="text-gray-700 leading-relaxed mb-4">
-                      Our Digital & AI Hub represents UNDP's commitment to harnessing the power of technology for people-centered development. Through strategic initiatives, capacity building, and innovative solutions, we are working to ensure that digital transformation serves humanity and contributes to a more equitable, sustainable future.
-                    </p>
-                    <p className="text-gray-700 leading-relaxed">
-                      I am proud of our dedicated team of experts who are driving this transformation forward. Together, we are building digital public infrastructure, fostering innovation, and empowering communities to thrive in the digital age. Thank you for joining us on this journey.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-        {/* Message Section - Sonali Dayaratne */}
-        <section className="mb-16">
-          <div className="max-w-4xl mx-auto">
-            <div className="card bg-gradient-to-br from-white to-undp-light-grey p-6 sm:p-8 lg:p-10">
-              <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-                <div className="flex-shrink-0">
-                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-undp-blue mx-auto md:mx-0 overflow-hidden">
-                    <img
-                      src="https://www.undp.org/sites/g/files/zskgke326/files/styles/bio_card_medium/public/2023-08/undp_bd_drr_new_01.jpg?h=5d4d2577&itok=WgG6Depq"
-                      alt="Sonali Dayaratne"
-                      className="w-full h-full object-cover"
-                      style={{ objectPosition: '50% 0%' }}
-                    />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl sm:text-2xl font-bold text-undp-blue mb-2">
-                    Sonali Dayaratne
-                  </h3>
-                  <p className="text-lg text-gray-700 mb-4 font-semibold">
-                    Deputy Resident Representative
-                  </p>
-                  <div className="prose max-w-none">
-                    <p className="text-gray-700 leading-relaxed mb-4">
-                      In today's rapidly evolving digital landscape, the UNDP Digital & AI Hub stands as a beacon of innovation and collaboration. Our mission extends beyond technology adoption—we are building bridges between digital solutions and sustainable development outcomes that truly matter to the people we serve.
-                    </p>
-                    <p className="text-gray-700 leading-relaxed mb-4">
-                      As Deputy Resident Representative, I am inspired by the transformative potential of our initiatives. From capacity building programs that empower local communities to innovative projects that leverage artificial intelligence for social good, we are creating pathways for inclusive digital transformation across Bangladesh.
-                    </p>
-                    <p className="text-gray-700 leading-relaxed">
-                      The success of our Digital & AI Hub lies in the collaborative spirit of our team and partners. Together, we are ensuring that digital innovation becomes a powerful tool for advancing the Sustainable Development Goals, leaving no one behind in our journey toward a more connected, empowered, and resilient future.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Advisory Section */}
-        <section className="mb-16">
-          <div className="flex items-center space-x-3 mb-8">
-            <div className="w-12 h-12 bg-undp-dark-blue rounded-lg flex items-center justify-center">
-              <User className="text-white" size={24} />
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue">Advisory</h2>
-          </div>
-          {advisoryMembers.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-              {advisoryMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className="card text-center group hover:shadow-xl transition-all duration-300"
-                >
-                  <div className="relative mb-4">
-                    <div className="w-32 h-32 rounded-full mx-auto bg-undp-light-grey flex items-center justify-center border-4 border-undp-light-grey group-hover:border-undp-dark-blue transition-colors">
-                      <User size={48} className="text-gray-400" />
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-undp-blue mb-2">{member.name}</h3>
-                  <p className="text-gray-600 mb-4">{member.designation}</p>
-                  
-                  {/* Hover reveal contact info */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-y-2">
+                  {/* Social Links Overlay */}
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     {member.email && (
                       <a
                         href={`mailto:${member.email}`}
-                        className="flex items-center justify-center space-x-2 text-gray-600 hover:text-undp-blue transition-colors"
+                        className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-lg"
                       >
-                        <Mail size={16} />
-                        <span className="text-sm">Email</span>
+                        <Mail size={18} />
                       </a>
                     )}
                     {member.linkedin && (
@@ -222,82 +117,101 @@ const Team = () => {
                         href={member.linkedin}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center space-x-2 text-gray-600 hover:text-undp-blue transition-colors"
+                        className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-lg"
                       >
-                        <Linkedin size={16} />
-                        <span className="text-sm">LinkedIn</span>
+                        <Linkedin size={18} />
+                      </a>
+                    )}
+                    {member.twitter && (
+                      <a
+                        href={member.twitter}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-lg"
+                      >
+                        <Twitter size={18} />
                       </a>
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No advisory members available. Check back soon!</p>
-            </div>
-          )}
-        </section>
 
-        {/* Team Section */}
-        <section className="bg-undp-light-grey py-12 rounded-lg">
-          <div className="px-8">
-            <div className="flex items-center space-x-3 mb-6 sm:mb-8">
-              <div className="w-12 h-12 bg-undp-blue rounded-lg flex items-center justify-center">
-                <User className="text-white" size={24} />
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-undp-blue">Team</h2>
-            </div>
-            {loading && teamMembers.length === 0 ? (
-              <SkeletonLoader type="team" count={6} />
-            ) : teamMembers.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-                {teamMembers.map((member) => (
-                  <div
-                    key={member.id}
-                    className="card text-center group hover:shadow-xl transition-all duration-300 bg-white"
-                  >
-                    <div className="relative mb-4">
-                      <div className="w-32 h-32 rounded-full mx-auto bg-undp-light-grey flex items-center justify-center border-4 border-undp-light-grey group-hover:border-undp-blue transition-colors">
-                        <User size={48} className="text-gray-400" />
-                      </div>
+                {/* Info */}
+                <div className="p-6 text-center">
+                  <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
+                    {member.name}
+                  </h3>
+
+                  {member.designation && (
+                    <p className="text-sm font-semibold text-blue-600 mb-3">
+                      {member.designation}
+                    </p>
+                  )}
+
+                  {member.bio && (
+                    <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed">
+                      {member.bio}
+                    </p>
+                  )}
+
+                  {/* Section Badge */}
+                  {member.section && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${member.section === 'team'
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'bg-purple-50 text-purple-700'
+                        }`}>
+                        {member.section === 'team' ? 'Core Team' : 'Advisory'}
+                      </span>
                     </div>
-                    <h3 className="text-xl font-bold text-undp-blue mb-2">{member.name}</h3>
-                    <p className="text-gray-600 mb-4">{member.designation}</p>
-                    
-                    {/* Hover reveal contact info */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-y-2">
-                      {member.email && (
-                        <a
-                          href={`mailto:${member.email}`}
-                          className="flex items-center justify-center space-x-2 text-gray-600 hover:text-undp-blue transition-colors"
-                        >
-                          <Mail size={16} />
-                          <span className="text-sm">Email</span>
-                        </a>
-                      )}
-                      {member.linkedin && (
-                        <a
-                          href={member.linkedin}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center space-x-2 text-gray-600 hover:text-undp-blue transition-colors"
-                        >
-                          <Linkedin size={16} />
-                          <span className="text-sm">LinkedIn</span>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No team members available. Check back soon!</p>
-              </div>
-            )}
+            ))}
           </div>
-        </section>
+        )}
+
+        {/* Info Cards */}
+        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center hover:shadow-lg transition-shadow">
+            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users className="text-blue-600" size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">{team.filter(m => m.section === 'team').length}+</h3>
+            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Core Team Members</p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center hover:shadow-lg transition-shadow">
+            <div className="bg-purple-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Award className="text-purple-600" size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">{team.filter(m => m.section === 'advisory').length}+</h3>
+            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Advisory Board</p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl border border-gray-200 text-center hover:shadow-lg transition-shadow">
+            <div className="bg-green-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Target className="text-green-600" size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">100%</h3>
+            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Dedicated to Excellence</p>
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="mt-16 bg-gradient-to-br from-[#003359] to-[#004d7a] rounded-3xl p-12 text-white text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzR2Mi1oMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20"></div>
+
+          <div className="relative z-10">
+            <Users size={48} className="mx-auto mb-4 text-blue-200" />
+            <h2 className="text-3xl font-bold mb-4">Join Our Team</h2>
+            <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
+              Be part of Bangladesh's digital transformation journey. We're always looking for talented individuals
+            </p>
+            <button className="bg-white text-[#003359] px-8 py-4 rounded-xl font-bold hover:bg-blue-50 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105">
+              View Open Positions
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

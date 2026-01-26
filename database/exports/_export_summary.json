@@ -1,0 +1,36 @@
+{
+  "exportDate": "2026-01-20T14:23:19.470Z",
+  "supabaseUrl": "https://xyullbkhyopfxeoljlqi.supabase.co",
+  "totalTables": 7,
+  "totalRecords": 21,
+  "tables": [
+    {
+      "name": "projects",
+      "recordCount": 4
+    },
+    {
+      "name": "support_requests",
+      "recordCount": 8
+    },
+    {
+      "name": "initiatives",
+      "recordCount": 6
+    },
+    {
+      "name": "learning_modules",
+      "recordCount": 0
+    },
+    {
+      "name": "events",
+      "recordCount": 3
+    },
+    {
+      "name": "standards",
+      "recordCount": 0
+    },
+    {
+      "name": "team",
+      "recordCount": 0
+    }
+  ]
+}

@@ -38,22 +38,11 @@ const VoiceAgent = () => {
         }
     };
 
-    // Helper to handle navigation: Go Home first if needed, then Scroll
-    const navigateToSection = useCallback((sectionId, spokenText) => {
-        if (location.pathname !== '/') {
-            navigate('/');
-            setTimeout(() => scrollToSection(sectionId), 500);
-        } else {
-            scrollToSection(sectionId);
-        }
-        speak(spokenText);
-    }, [location.pathname, navigate, speak]);
-
     // OpenAI API Integration
     const callOpenAI = async (text) => {
         const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
         if (!apiKey) {
-            console.warn("No OpenAI API Key found. Falling back to basic logic.");
+            console.warn("No OpenAI API Key found.");
             return null;
         }
 
@@ -96,12 +85,11 @@ const VoiceAgent = () => {
     };
 
     const processCommand = useCallback(async (cmd) => {
-        let actionTaken = false;
         const commandStart = cmd.toLowerCase();
         console.log('Voice Command:', commandStart);
-        setFeedback('Processing...');
+        setFeedback('Thinking...');
 
-        // Try OpenAI First
+        // Try OpenAI Only
         const aiResponse = await callOpenAI(commandStart);
 
         if (aiResponse && aiResponse.section && aiResponse.section !== 'unknown') {
@@ -124,60 +112,20 @@ const VoiceAgent = () => {
 
             speak(reply);
             setFeedback('AI: ' + reply);
-            return;
-        }
-
-        // Fallback to Regex
-        if (commandStart.includes('home') || commandStart.includes('top') || commandStart.includes('bari') || commandStart.includes('shuru')) {
-            navigateToSection('home', "Home page e jacchi.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('mission') || commandStart.includes('purpose') || commandStart.includes('about') || commandStart.includes('lokkho')) {
-            navigateToSection('mission', "Mission details dekhacche.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('project') || commandStart.includes('support') || commandStart.includes('prokolpo') || commandStart.includes('kaj')) {
-            navigateToSection('projects', "Projects section open kora hocche.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('learning') || commandStart.includes('academy') || commandStart.includes('course') || commandStart.includes('shikha')) {
-            navigateToSection('learning', "Learning Hub e niye jacchi.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('initiative') || commandStart.includes('uddeg')) {
-            navigateToSection('initiatives', "Initiatives gulo dekhun.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('event') || commandStart.includes('anusthan')) {
-            navigateToSection('events', "Upcoming Events dekhacche.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('standard') || commandStart.includes('policy')) {
-            navigateToSection('standards', "Standards and Policies.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('team') || commandStart.includes('dol')) {
-            navigateToSection('team', "Team members der sathe porichoy hon.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('dashboard') || commandStart.includes('admin')) {
-            navigate('/admin/dashboard');
-            speak("Dashboard open kora hocche.");
-            actionTaken = true;
-        }
-        else if (commandStart.includes('login') || commandStart.includes('sign in') || commandStart.includes('dhukbo')) {
-            const event = new CustomEvent('open-auth-modal');
-            window.dispatchEvent(event);
-            speak("Login window open kora hocche.");
-            actionTaken = true;
-        }
-
-        if (!actionTaken) {
-            setFeedback('Bujhte pari nai: ' + commandStart);
         } else {
-            // setFeedback('Executed: ' + commandStart);
+            // Fallback or No Key Error
+            const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+            if (!apiKey) {
+                const msg = "Please add OpenAI API Key to .env file.";
+                setFeedback('No API Key');
+                speak(msg);
+            } else {
+                const msg = "Bujhte pari nai."; // Fallback response in Banglish
+                setFeedback('Unclear');
+                speak(msg);
+            }
         }
-    }, [navigate, navigateToSection, speak, location.pathname]);
+    }, [navigate, speak, location.pathname]);
 
     // Initialize Speech Recognition
     useEffect(() => {
@@ -248,7 +196,7 @@ const VoiceAgent = () => {
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                             {isListening ? <Activity size={12} className="animate-pulse text-green-500" /> : <MessageSquare size={12} />}
-                            {isListening ? 'AI Agent (Intelligent Mode)' : 'Agent Paused'}
+                            {isListening ? 'AI Agent (OpenAI Mode)' : 'Agent Paused'}
                         </span>
                         <button onClick={() => {
                             shouldListenRef.current = false;

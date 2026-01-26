@@ -24,11 +24,11 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
+      const response = await login(email, password);
       // Small delay to ensure state is updated
       setTimeout(() => {
-        // Check if admin login (case-insensitive)
-        if (email.toLowerCase().trim() === 'admin' && password === 'admin123') {
+        // Check if admin from backend response
+        if (response?.user?.isAdmin) {
           navigate('/admin/dashboard');
         } else {
           // Regular user - redirect to original page or home
@@ -42,7 +42,8 @@ const Login = () => {
         err.message?.includes('email_not_confirmed')) {
         errorMessage = 'Please check your email and confirm your account before logging in.';
       } else if (err.message?.includes('Invalid login credentials') ||
-        err.message?.includes('invalid_credentials')) {
+        err.message?.includes('invalid_credentials') ||
+        err.message?.includes('Invalid email or password')) {
         errorMessage = 'Invalid email or password. Please check your credentials.';
       } else {
         errorMessage = err.message || 'Failed to log in. Please check your credentials.';
@@ -96,8 +97,8 @@ const Login = () => {
               <Info size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-blue-800">
                 <p className="font-bold mb-1">Demo Admin Access:</p>
-                <div className="flex gap-4">
-                  <span>User: <strong>admin</strong></span>
+                <div className="flex flex-col gap-1">
+                  <span>Email: <strong>admin@digitalaihub.com</strong></span>
                   <span>Pass: <strong>admin123</strong></span>
                 </div>
               </div>

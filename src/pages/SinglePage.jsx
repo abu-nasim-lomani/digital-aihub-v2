@@ -138,49 +138,89 @@ const SinglePage = () => {
       </section>
 
       {/* Mission & Purpose Section - Clean Modern Design */}
-      <section id="mission" className="section-container scroll-mt-20 py-20 bg-gray-50/80">
-        <div className="max-w-6xl mx-auto px-4">
+      {/* Mission & Purpose Section - Premium Design */}
+      <section id="mission" className="section-container scroll-mt-20 py-24 relative overflow-hidden">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-50 to-transparent -z-10"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-50 rounded-full blur-3xl -z-10 opacity-50"></div>
 
-          {/* Section Title */}
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Mission & Purpose
-            </h2>
-            <div className="h-1.5 w-24 bg-undp-blue mx-auto rounded-full"></div>
-          </div>
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col lg:flex-row items-center gap-16">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
-
-            {/* Mission Card */}
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-                <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-undp-blue group-hover:text-white transition-colors duration-300">
-                  <Target className="w-6 h-6 text-undp-blue group-hover:text-white transition-colors duration-300" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 group-hover:text-undp-blue transition-colors duration-300">
-                  Our Mission
-                </h3>
-              </div>
-              <p className="text-gray-600 leading-relaxed pl-0 sm:pl-[60px]">
-                To enable and accelerate <span className="font-semibold text-gray-800">people-centered digital transformation</span> across UNDP and partner
-                organizations by providing innovative solutions, capacity building, and strategic support.
+            {/* Left Content */}
+            <div className="lg:w-1/2">
+              <span className="inline-block py-1 px-3 rounded-full bg-blue-100 text-[#003359] text-xs font-bold tracking-widest uppercase mb-6">
+                Our Vision
+              </span>
+              <h2 className="text-4xl md:text-5xl font-bold text-[#003359] mb-8 leading-tight">
+                Driving Digital <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Transformation</span>
+              </h2>
+              <p className="text-lg text-gray-600 mb-8 leading-relaxed">
+                We envision a future where technology empowers every citizen, bridges the digital divide, and accelerates sustainable development goals across Bangladesh.
               </p>
+
+              <div className="flex gap-4">
+                <div className="flex-1 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:-translate-y-1 transition-transform duration-300">
+                  <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
+                    <Target className="text-blue-600" size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Our Mission</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    Accelerate people-centered digital transformation through innovation, capacity building, and strategic support.
+                  </p>
+                </div>
+
+                <div className="flex-1 bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:-translate-y-1 transition-transform duration-300">
+                  <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mb-4">
+                    <Lightbulb className="text-purple-600" size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Our Purpose</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    Serve as a catalyst for digital innovation, ensuring technology creates equitable opportunities for all.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Purpose Card */}
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-                <div className="p-3 bg-amber-50 rounded-lg group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300">
-                  <Lightbulb className="w-6 h-6 text-amber-600 group-hover:text-white transition-colors duration-300" />
+            {/* Right Visual */}
+            <div className="lg:w-1/2 relative">
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+                <img
+                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=80&w=800"
+                  alt="Digital Transformation Team"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#003359]/80 to-transparent"></div>
+                <div className="absolute bottom-8 left-8 right-8 text-white">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex -space-x-4">
+                      {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-gray-200 overflow-hidden">
+                          <img src={`https://ui-avatars.com/api/?name=User+${i}&background=random`} alt="User" />
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-sm font-semibold">Joined by 500+ Change Makers</span>
+                  </div>
+                  <p className="text-sm text-blue-100 font-medium opacity-90">
+                    "Together, we are building the digital foundations for a prosperous nation."
+                  </p>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 group-hover:text-amber-600 transition-colors duration-300">
-                  Our Purpose
-                </h3>
               </div>
-              <p className="text-gray-600 leading-relaxed pl-0 sm:pl-[60px]">
-                We serve as a catalyst for <span className="font-semibold text-gray-800">digital innovation</span>, ensuring technology serves humanity.
-                Our approach prioritizes inclusivity, accessibility, and ethical use of digital tools.
-              </p>
+
+              {/* Floating Badge */}
+              <div className="absolute -top-6 -right-6 bg-white p-4 rounded-2xl shadow-xl animate-bounce-slow hidden md:block">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-100 p-2 rounded-lg text-green-600">
+                    <Target size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase">Impact Goal</p>
+                    <p className="text-lg font-bold text-gray-900">10M+ Citizens</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
           </div>

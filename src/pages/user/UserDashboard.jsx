@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../supabase/config';
+import { supportRequestsAPI } from '../../utils/api';
 import { FileText, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -16,7 +16,7 @@ const UserDashboard = () => {
   });
 
   useEffect(() => {
-    if (currentUser && currentUser.email) {
+    if (currentUser) {
       fetchSupportRequests();
     }
   }, [currentUser]);
@@ -24,30 +24,21 @@ const UserDashboard = () => {
   const fetchSupportRequests = async () => {
     try {
       setLoading(true);
-      const userEmail = currentUser.email;
 
-      // Fetch only support requests from Supabase filtered by created_by
-      const { data, error } = await supabase
-        .from('support_requests')
-        .select('*')
-        .eq('created_by', userEmail)
-        .order('created_at', { ascending: false });
+      // Fetch support requests from backend API
+      const response = await supportRequestsAPI.getAll();
+      const data = response.data || [];
 
-      if (error) {
-        console.error('Error fetching support requests:', error);
-        setSupportRequests([]);
-      } else {
-        setSupportRequests(data || []);
+      setSupportRequests(data);
 
-        // Calculate stats
-        const stats = {
-          total: (data || []).length,
-          pending: (data || []).filter(s => s.status === 'pending').length,
-          approved: (data || []).filter(s => s.status === 'approved').length,
-          declined: (data || []).filter(s => s.status === 'declined').length,
-        };
-        setStats(stats);
-      }
+      // Calculate stats
+      const stats = {
+        total: data.length,
+        pending: data.filter(s => s.status === 'pending').length,
+        approved: data.filter(s => s.status === 'approved').length,
+        declined: data.filter(s => s.status === 'declined').length,
+      };
+      setStats(stats);
     } catch (error) {
       console.error('Error fetching support requests:', error);
       setSupportRequests([]);
@@ -90,7 +81,7 @@ const UserDashboard = () => {
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
-    const d = date?.toDate ? date.toDate() : new Date(date);
+    const d = new Date(date);
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
@@ -188,9 +179,9 @@ const UserDashboard = () => {
                       {supportRequests.map((request) => (
                         <tr key={request.id} className="hover:bg-undp-light-grey">
                           <td className="px-4 py-3 font-medium">{request.title}</td>
-                          <td className="px-4 py-3 text-gray-600">{request.support_type || 'N/A'}</td>
+                          <td className="px-4 py-3 text-gray-600">{request.supportType || 'N/A'}</td>
                           <td className="px-4 py-3 text-gray-600">{request.duration || 'N/A'}</td>
-                          <td className="px-4 py-3 text-gray-600">{formatDate(request.created_at)}</td>
+                          <td className="px-4 py-3 text-gray-600">{formatDate(request.createdAt)}</td>
                           <td className="px-4 py-3">{getStatusBadge(request.status)}</td>
                         </tr>
                       ))}

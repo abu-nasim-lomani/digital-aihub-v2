@@ -1,0 +1,184 @@
+// Prisma Schema for Digital & AI Hub
+// Maps to existing PostgreSQL database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  fullName      String?   @map("full_name")
+  isAdmin       Boolean   @default(false) @map("is_admin")
+  isActive      Boolean   @default(true) @map("is_active")
+  emailVerified Boolean   @default(false) @map("email_verified")
+  lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  createdProjects      Project[]         @relation("ProjectCreator")
+  createdInitiatives   Initiative[]      @relation("InitiativeCreator")
+  createdEvents        Event[]           @relation("EventCreator")
+  createdSupportRequests SupportRequest[] @relation("SupportRequestCreator")
+
+  @@map("users")
+}
+
+model Project {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title         String
+  description   String?
+  supportType   String?   @map("support_type")
+  documentUrl   String?   @map("document_url")
+  duration      String?
+  impact        String?
+  status        String    @default("pending")
+  imageUrl      String?   @map("image_url")
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  creator          User?            @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  supportRequests  SupportRequest[]
+
+  @@map("projects")
+}
+
+model SupportRequest {
+  id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  projectId               String?   @map("project_id") @db.Uuid
+  title                   String
+  supportType             String?   @map("support_type")
+  documentUrl             String?   @map("document_url")
+  duration                String?
+  impact                  String?
+  status                  String    @default("pending")
+  priority                String    @default("Medium")
+  progress                Int       @default(0)
+  workUpdates             Json      @default("[]") @map("work_updates") @db.JsonB
+  approvedAt              DateTime? @map("approved_at") @db.Timestamptz
+  estimatedCompletionDate DateTime? @map("estimated_completion_date") @db.Date
+  createdBy               String?   @map("created_by") @db.Uuid
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator User?    @relation("SupportRequestCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  
+  // Guest Info
+  guestName       String?   @map("guest_name")
+  guestEmail      String?   @map("guest_email")
+
+  @@map("support_requests")
+}
+
+model Initiative {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title        String
+  description  String
+  imageUrl     String?   @map("image_url")
+  documentUrl  String?   @map("document_url")
+  documentName String?   @map("document_name")
+  type         String?
+  result       String?
+  impact       String
+  status       String    @default("pending")
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  creator User? @relation("InitiativeCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("initiatives")
+}
+
+model LearningModule {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  moduleTitle String    @map("module_title")
+  content     String?
+  videoUrl    String?   @map("video_url")
+  resources   String[]
+  curriculum  String?
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("learning_modules")
+}
+
+model Event {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title         String
+  description   String
+  outcome       String
+  date          DateTime  @db.Date
+  type          String
+  location      String?
+  videoUrls     String[]  @map("video_urls")
+  galleryImages String[]  @map("gallery_images")
+  documents     Json      @default("[]") @db.JsonB
+  status        String    @default("pending")
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  creator User? @relation("EventCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("events")
+}
+
+model Standard {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title       String
+  category    String
+  description String?
+  fileUrl     String    @map("file_url")
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("standards")
+}
+
+model Team {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name         String
+  designation  String
+  photoUrl     String?   @map("photo_url")
+  email        String?
+  linkedin     String?
+  section      String
+  displayOrder Int       @default(0) @map("display_order")
+  status       String    @default("pending")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("team")
+}
+
+model AuditLog {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tableName  String    @map("table_name")
+  operation  String
+  recordId   String?   @map("record_id") @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  oldData    Json?     @map("old_data") @db.JsonB
+  newData    Json?     @map("new_data") @db.JsonB
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("audit_log")
+}

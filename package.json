@@ -10,8 +10,9 @@
     "preview": "node run-dev.js preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.89.0",
+    "axios": "^1.13.2",
     "html2canvas": "^1.4.1",
+    "js-cookie": "^3.0.5",
     "jspdf": "^4.0.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",

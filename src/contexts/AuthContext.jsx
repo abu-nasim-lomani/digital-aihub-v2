@@ -1,11 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../supabase/config';
+import { authAPI } from '../utils/api';
 
 const AuthContext = createContext();
-
-// Hardcoded admin credentials
-const ADMIN_EMAIL = 'admin';
-const ADMIN_PASSWORD = 'admin123';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -20,135 +16,71 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for admin in localStorage
-    const adminUser = localStorage.getItem('adminUser');
-    if (adminUser === 'true') {
-      setCurrentUser({ email: ADMIN_EMAIL, isAdmin: true });
-      setLoading(false);
-      return;
-    }
+    // Check for existing token and validate
+    const initAuth = async () => {
+      const token = localStorage.getItem('authToken');
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setCurrentUser({
-          email: session.user.email,
-          id: session.user.id,
-          isAdmin: false,
-        });
+      if (token) {
+        try {
+          const response = await authAPI.me();
+          setCurrentUser(response.data);
+        } catch (error) {
+          // Token invalid or expired
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('currentUser');
+          setCurrentUser(null);
+        }
       }
-      setLoading(false);
-    });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setCurrentUser({
-          email: session.user.email,
-          id: session.user.id,
-          isAdmin: false,
-        });
-      } else {
-        setCurrentUser(null);
-      }
       setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initAuth();
   }, []);
 
   const login = async (email, password) => {
-    // Check for hardcoded admin credentials (case-insensitive)
-    if (email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASSWORD) {
-      const adminUser = { email: ADMIN_EMAIL, isAdmin: true };
-      localStorage.setItem('adminUser', 'true');
-      setCurrentUser(adminUser);
-      return Promise.resolve();
-    }
+    try {
+      const response = await authAPI.login({ email, password });
+      const { token, user } = response.data;
 
-    // Regular user login via Supabase
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+      // Store token and user
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      setCurrentUser(user);
 
-    if (error) {
-      // Provide user-friendly error messages
-      if (error.message?.includes('Email not confirmed') || 
-          error.message?.includes('email_not_confirmed') ||
-          error.message?.includes('signup_disabled')) {
-        throw new Error('Please check your email and confirm your account before logging in.');
-      } else if (error.message?.includes('Invalid login credentials') || 
-                 error.message?.includes('invalid_credentials')) {
-        throw new Error('Invalid email or password. Please check your credentials.');
-      }
+      return response.data;
+    } catch (error) {
       throw error;
     }
-    return data;
   };
 
   const logout = async () => {
     try {
-      // Clear admin session first
-      localStorage.removeItem('adminUser');
-      
-      // Clear user state immediately
-      setCurrentUser(null);
-      
-      // Always sign out from Supabase to clear any session
-      try {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          console.warn('Supabase signOut error:', error);
-        }
-      } catch (supabaseError) {
-        console.warn('Supabase signOut exception:', supabaseError);
-        // Continue with logout even if Supabase signOut fails
-      }
-      
-      return Promise.resolve();
+      await authAPI.logout();
     } catch (error) {
-      console.error('Logout error:', error);
-      // Still clear local state even if there's an error
-      localStorage.removeItem('adminUser');
+      console.warn('Logout API error:', error);
+    } finally {
+      // Always clear local state
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('currentUser');
       setCurrentUser(null);
-      return Promise.resolve(); // Don't throw, ensure logout completes
     }
   };
 
-  const signup = async (email, password) => {
-    // Admin signup is not allowed - only hardcoded admin exists
-    if (email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase()) {
-      throw new Error('Admin account cannot be created. Use the default admin credentials to login.');
-    }
-    
-    // Regular user signup via Supabase
-    // Note: Supabase requires email confirmation by default
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-      }
-    });
+  const signup = async (email, password, fullName) => {
+    try {
+      const response = await authAPI.signup({ email, password, fullName });
+      const { token, user } = response.data;
 
-    if (error) {
-      // Provide user-friendly error messages
-      if (error.message.includes('already registered') || error.message.includes('already been registered')) {
-        throw new Error('This email is already registered. Please log in instead.');
-      }
+      // Store token and user
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      setCurrentUser(user);
+
+      return response.data;
+    } catch (error) {
       throw error;
     }
-    
-    // If email confirmation is required, return success with confirmation message
-    if (data.user && !data.session) {
-      // Return data with a flag indicating email confirmation is needed
-      return { ...data, requiresEmailConfirmation: true };
-    }
-    
-    return data;
   };
 
   const value = {
