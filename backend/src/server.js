@@ -20,11 +20,31 @@ import supportRequestsRoutes from './routes/support-requests.routes.js';
 const app = express();
 
 // CORS configuration - MUST be before other middleware
+// CORS configuration - MUST be before other middleware
+const allowedOrigins = [
+    config.corsOrigin,
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://digital-aihub-i0oor1fz1-md-abu-nasims-projects.vercel.app',
+    'https://digital-aihub.vercel.app'
+];
+
 app.use(cors({
-    origin: config.corsOrigin,
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        // Check if origin is allowed or is a vercel subdomain
+        if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+            callback(null, true);
+        } else {
+            console.log('Blocked by CORS:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
