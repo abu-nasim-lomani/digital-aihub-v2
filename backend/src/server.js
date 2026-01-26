@@ -41,6 +41,8 @@ app.use('/api/', limiter);
 // app.use('/uploads', express.static(config.uploadDir));
 
 // Routes
+import uploadRoutes from './routes/upload.routes.js';
+
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/initiatives', initiativesRoutes);
@@ -49,6 +51,7 @@ app.use('/api/learning', learningRoutes);
 app.use('/api/standards', standardsRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/support-requests', supportRequestsRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
