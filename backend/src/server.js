@@ -1,7 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import config from './config/env.js';
@@ -87,6 +85,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server only if not importing for Vercel
+// eslint-disable-next-line no-undef
 if (process.env.NODE_ENV !== 'production') {
     app.listen(config.port, () => {
         console.log(`🚀 Server running on http://localhost:${config.port}`);
