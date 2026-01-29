@@ -86,14 +86,11 @@ app.use((req, res) => {
 // Error handler
 app.use(errorHandler);
 
-// Start server only if not importing for Vercel
-// eslint-disable-next-line no-undef
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(config.port, () => {
-        console.log(`🚀 Server running on http://localhost:${config.port}`);
-        console.log(`📊 Environment: ${config.nodeEnv}`);
-        console.log(`🔐 CORS origin: ${config.corsOrigin}`);
-        console.log(`⏱️ Rate Limit: ${config.rateLimitMaxRequests} reqs / ${config.rateLimitWindowMs / 60000} mins`);
+// Start server only if not in Vercel environment
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
     });
 }
 
