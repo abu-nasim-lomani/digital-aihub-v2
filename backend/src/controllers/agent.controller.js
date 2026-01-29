@@ -1,8 +1,5 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import prisma from '../config/database.js';
-
-// eslint-disable-next-line no-undef
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+import { chatbotService } from '../services/chatbot.service.js';
 
 // Tools definition for Gemini Function Calling
 const toolsDefinition = [
