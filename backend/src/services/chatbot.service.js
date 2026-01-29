@@ -678,3 +678,8 @@ export async function processMessage(message) {
         return { reply: "Sorry, I encountered an error processing your request." };
     }
 }
+
+
+export const chatbotService = {
+    processQuery
+};
