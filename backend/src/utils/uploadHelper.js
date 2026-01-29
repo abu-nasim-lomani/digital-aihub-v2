@@ -1,5 +1,5 @@
 
-import { supabase } from '../config/supabase.js';
+// import { supabase } from '../config/supabase.js'; // Removed: Migrated to PostgreSQL
 import multer from 'multer';
 
 // Use memory storage for multer so we can access the buffer
