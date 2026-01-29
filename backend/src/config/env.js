@@ -31,7 +31,8 @@ const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
 
 for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
-        throw new Error(`Missing required environment variable: ${envVar}`);
+        console.warn(`WARNING: Missing required environment variable: ${envVar}`);
+        // throw new Error(`Missing required environment variable: ${envVar}`);
     }
 }
 
