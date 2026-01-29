@@ -26,14 +26,12 @@ export const config = {
     rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
 };
 
-// Validate required environment variables
-const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
 
-for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-        console.warn(`WARNING: Missing required environment variable: ${envVar}`);
-        // throw new Error(`Missing required environment variable: ${envVar}`);
-    }
-}
+// Validate required environment variables
+console.log('Checking environment variables...');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'MISSING');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'MISSING');
+console.log('DIRECT_URL:', process.env.DIRECT_URL ? 'SET' : 'MISSING');
 
 export default config;
+
