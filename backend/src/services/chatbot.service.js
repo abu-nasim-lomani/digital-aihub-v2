@@ -681,5 +681,6 @@ export async function processMessage(message) {
 
 
 export const chatbotService = {
-    processQuery
+    processQuery: processMessage  // Export processMessage as processQuery for compatibility
 };
+

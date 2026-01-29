@@ -20,6 +20,10 @@ export const upload = multer({
  * @returns {Promise<String>} - Public URL of the uploaded file
  */
 export const uploadToSupabase = async (file, bucket = 'uploads', folder = '') => {
+    // DISABLED: Supabase removed, migrated to PostgreSQL
+    throw new Error('File upload functionality is currently disabled. Please contact support.');
+
+    /* ORIGINAL CODE - COMMENTED OUT
     try {
         if (!file) {
             throw new Error('No file provided');
@@ -52,4 +56,5 @@ export const uploadToSupabase = async (file, bucket = 'uploads', folder = '') =>
         console.error('Upload Helper Error:', error.message);
         throw error;
     }
+    */
 };
