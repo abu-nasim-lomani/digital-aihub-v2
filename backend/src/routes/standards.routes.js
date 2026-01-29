@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/authorize.js';
 import express from 'express';
 
@@ -7,13 +7,18 @@ const prisma = new PrismaClient();
 const router = express.Router();
 
 // GET /api/standards - Get all standards
-router.get('/', async (req, res, next) => {
+router.get('/', optionalAuth, async (req, res, next) => {
     try {
         const { category } = req.query;
-        const where = { status: 'published' };
+        const where = {};
+
+        // Filter for non-admins
+        if (!req.user?.isAdmin) {
+            where.status = 'published';
+        }
 
         if (category) {
-            where.category = category; // 'DPI' or 'LGI'
+            where.category = category;
         }
 
         const standards = await prisma.standard.findMany({
@@ -47,8 +52,13 @@ router.get('/:id', async (req, res, next) => {
 // POST /api/standards - Create standard (admin only)
 router.post('/', authenticate, requireAdmin, async (req, res, next) => {
     try {
+        const { id: _id, ...rest } = req.body;
+
         const standard = await prisma.standard.create({
-            data: req.body
+            data: {
+                ...rest,
+                status: rest.status || 'pending'
+            }
         });
 
         res.status(201).json(standard);
@@ -60,9 +70,11 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
 // PUT /api/standards/:id - Update standard (admin only)
 router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
     try {
+        const { id: _id, ...rest } = req.body;
+
         const standard = await prisma.standard.update({
             where: { id: req.params.id },
-            data: req.body
+            data: rest
         });
 
         res.json(standard);

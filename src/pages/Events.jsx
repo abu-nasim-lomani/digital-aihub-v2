@@ -26,7 +26,13 @@ const Events = () => {
 
   const filteredEvents = events.filter(event => {
     if (filterType === 'all') return true;
-    return event.type === filterType;
+    if (filterType === 'upcoming') {
+      return event.status === 'upcoming' || new Date(event.date) > new Date();
+    }
+    if (filterType === 'archive') {
+      return event.status === 'completed' || new Date(event.date) < new Date();
+    }
+    return true;
   });
 
   const getEventImage = (title) => {
@@ -75,8 +81,8 @@ const Events = () => {
               key={type}
               onClick={() => setFilterType(type)}
               className={`px-6 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all capitalize ${filterType === type
-                  ? 'bg-white text-undp-blue shadow-md border-b-2 border-undp-blue'
-                  : 'text-gray-500 hover:bg-gray-100'
+                ? 'bg-white text-undp-blue shadow-md border-b-2 border-undp-blue'
+                : 'text-gray-500 hover:bg-gray-100'
                 }`}
             >
               {type === 'all' ? 'All Events' : type}
@@ -106,8 +112,8 @@ const Events = () => {
                   {/* Type Badge */}
                   <div className="absolute top-3 right-3">
                     <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm ${event.type === 'upcoming'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-700 text-white'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-700 text-white'
                       }`}>
                       {event.type || 'Event'}
                     </span>

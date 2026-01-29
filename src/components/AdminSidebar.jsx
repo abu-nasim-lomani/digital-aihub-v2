@@ -9,7 +9,8 @@ import {
     Users,
     HelpCircle,
     LogOut,
-    Settings
+    Settings,
+    ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -47,7 +48,12 @@ const AdminSidebar = () => {
                     <Settings className="animate-spin-slow" size={20} />
                     <span className="text-xs font-bold uppercase tracking-widest">Admin Panel</span>
                 </div>
-                <h2 className="text-xl font-bold tracking-tight text-white">Console</h2>
+                <div className="flex justify-between items-center mt-1">
+                    <h2 className="text-xl font-bold tracking-tight text-white">Console</h2>
+                    <Link to="/" target="_blank" rel="noopener noreferrer" className="p-2 -mr-2 text-blue-300/50 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Open Frontend in New Tab">
+                        <ExternalLink size={20} />
+                    </Link>
+                </div>
             </div>
 
             {/* Navigation */}
@@ -61,8 +67,8 @@ const AdminSidebar = () => {
                             key={item.path}
                             to={item.path}
                             className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 group relative ${active
-                                    ? 'bg-blue-600 shadow-lg shadow-blue-900/50 text-white font-bold'
-                                    : 'text-blue-100/70 hover:bg-white/5 hover:text-white'
+                                ? 'bg-blue-600 shadow-lg shadow-blue-900/50 text-white font-bold'
+                                : 'text-blue-100/70 hover:bg-white/5 hover:text-white'
                                 }`}
                         >
                             <Icon size={20} className={active ? 'text-white' : 'text-blue-300 group-hover:text-white'} />

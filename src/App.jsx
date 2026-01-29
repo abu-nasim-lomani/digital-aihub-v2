@@ -29,8 +29,8 @@ import AdminLayout from './layouts/AdminLayout';
 // Separate layout component to use useLocation
 const AppLayout = () => {
   const location = useLocation();
-  // Hide Navbar/Footer on admin pages (except potentially login if we wanted, but generally all /admin)
-  const isAdminRoute = location.pathname.startsWith('/admin');
+  // Hide Navbar/Footer on admin pages (dashboard etc), but show on Login (/admin)
+  const isAdminRoute = location.pathname.startsWith('/admin') && location.pathname !== '/admin';
 
   return (
     <div className="min-h-screen flex flex-col m-0 p-0">

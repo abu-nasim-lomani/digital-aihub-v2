@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { LogIn, AlertCircle, Info, ArrowRight, Lock, Mail } from 'lucide-react';
@@ -9,9 +9,20 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.isAdmin) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/user/dashboard');
+      }
+    }
+  }, [currentUser, navigate]);
   const isAdminPage = location.pathname === '/admin';
 
   // Get redirect path from query params
@@ -58,7 +69,7 @@ const Login = () => {
     <div className="min-h-screen flex bg-white">
 
       {/* Left Panel - Branding (Hidden on mobile) */}
-      <div className="hidden lg:flex w-[45%] bg-[#003359] relative overflow-hidden flex-col justify-between p-12 text-white">
+      <div className="hidden lg:flex w-[45%] bg-[#003359] relative overflow-hidden flex-col justify-between p-12 pt-28 text-white">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
@@ -79,7 +90,7 @@ const Login = () => {
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 relative">
+      <div className="flex-1 flex items-center justify-center p-8 pt-24 relative">
         <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
 
           <div className="text-center lg:text-left">
@@ -92,18 +103,7 @@ const Login = () => {
           </div>
 
           {/* Admin Hint */}
-          {isAdminPage && (
-            <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3">
-              <Info size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
-                <p className="font-bold mb-1">Demo Admin Access:</p>
-                <div className="flex flex-col gap-1">
-                  <span>Email: <strong>admin@digitalaihub.com</strong></span>
-                  <span>Pass: <strong>admin123</strong></span>
-                </div>
-              </div>
-            </div>
-          )}
+
 
           {/* Error Message */}
           {error && (

@@ -14,6 +14,7 @@ import learningRoutes from './routes/learning.routes.js';
 import standardsRoutes from './routes/standards.routes.js';
 import teamRoutes from './routes/team.routes.js';
 import supportRequestsRoutes from './routes/support-requests.routes.js';
+import agentRoutes from './routes/agent.routes.js';
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/standards', standardsRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/support-requests', supportRequestsRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/agent', agentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -91,6 +93,7 @@ if (process.env.NODE_ENV !== 'production') {
         console.log(`🚀 Server running on http://localhost:${config.port}`);
         console.log(`📊 Environment: ${config.nodeEnv}`);
         console.log(`🔐 CORS origin: ${config.corsOrigin}`);
+        console.log(`⏱️ Rate Limit: ${config.rateLimitMaxRequests} reqs / ${config.rateLimitWindowMs / 60000} mins`);
     });
 }
 

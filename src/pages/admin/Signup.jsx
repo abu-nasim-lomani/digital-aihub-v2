@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserPlus, AlertCircle, CheckCircle, Mail, Lock, User, ArrowRight } from 'lucide-react';
@@ -11,8 +11,19 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signup } = useAuth();
+  const { signup, currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.isAdmin) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/user/dashboard');
+      }
+    }
+  }, [currentUser, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,7 +81,7 @@ const Signup = () => {
     <div className="min-h-screen flex bg-white">
 
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex w-[45%] bg-[#003359] relative overflow-hidden flex-col justify-between p-12 text-white">
+      <div className="hidden lg:flex w-[45%] bg-[#003359] relative overflow-hidden flex-col justify-between p-12 pt-28 text-white">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
@@ -100,7 +111,7 @@ const Signup = () => {
       </div>
 
       {/* Right Panel - Signup Form */}
-      <div className="flex-1 flex items-center justify-center p-8 relative">
+      <div className="flex-1 flex items-center justify-center p-8 pt-24 relative">
         <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
 
           <div className="text-center lg:text-left">

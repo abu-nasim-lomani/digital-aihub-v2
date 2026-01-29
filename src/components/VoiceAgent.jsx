@@ -1,230 +1,486 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bot, Mic, MicOff, X, Activity, MessageSquare } from 'lucide-react';
+import 'regenerator-runtime/runtime';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+import { Bot, Mic, MicOff, X, MessageSquare, Loader2 } from 'lucide-react';
+import axios from 'axios';
+
+const tourSteps = [
+    { page: '/', action: 'slide', slideIndex: 0, text: "Welcome to Digital AI Hub. We are Enablers for designing people-centered digital transformation, Empowering communities through innovative digital solutions." },
+    { page: '/', action: 'slide', slideIndex: 1, text: "We are Building Digital Capacity. Transforming organizations for the digital age." },
+    { page: '/', action: 'slide', slideIndex: 2, text: "Innovation for Development. Leveraging AI and technology for sustainable development." },
+    { page: '/', action: 'scroll', sectionId: 'mission', text: "Our Mission is to enable and accelerate people-centered digital transformation across UNDP and partner organizations." },
+    { page: '/', action: 'scroll', sectionId: 'initiatives', text: "Digital Initiatives. Here we showcase our strategic efforts to shape the digital landscape." },
+    { page: '/', action: 'scroll', sectionId: 'leaders', text: "Empowering Digital Leaders. Meet the brilliant minds behind our success." },
+    { page: '/', action: 'scroll', sectionId: 'learning', text: "Learning & Capacity Building. Empower yourself with our curated learning materials and resources." },
+    { page: '/', action: 'scroll', sectionId: 'projects', text: "Projects & Support. Explore our featured projects executing impactful change worldwide." },
+    { page: '/', action: 'scroll', sectionId: 'events', text: "Events & Archive. Stay updated with our upcoming workshops and seminars." },
+    { page: '/', action: 'scroll', sectionId: 'standards', text: "Standards & Best Practices. We follow rigorous guidelines to ensure quality and ethics." },
+    { page: '/', action: 'scroll', sectionId: 'leaders', text: "Join Our Team. We are always looking for passionate individuals to join our journey." }
+];
 
 const VoiceAgent = () => {
-    const [isListening, setIsListening] = useState(false);
-    const [transcript, setTranscript] = useState('');
-    const [feedback, setFeedback] = useState('');
-    const [isSupported, setIsSupported] = useState(true);
-
-    const recognitionRef = useRef(null);
-    const shouldListenRef = useRef(false);
-    const hasGreetedRef = useRef(false);
-
     const navigate = useNavigate();
     const location = useLocation();
+    const [isOpen, setIsOpen] = useState(false);
+    const [messages, setMessages] = useState([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [agentState, setAgentState] = useState('idle'); // idle, listening, processing, speaking
+    const [showWelcome, setShowWelcome] = useState(false);
+    const [tourActive, setTourActive] = useState(false);
+    const [currentStep, setCurrentStep] = useState(0);
+    const silenceTimerRef = useRef(null);
+    const lastTranscriptRef = useRef('');
 
-    // Voice Feedback
-    const speak = useCallback((text) => {
-        if ('speechSynthesis' in window) {
+    // We'll use a simplified history for the backend to save tokens/complexity
+    // Format: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
+    const [history, setHistory] = useState([]);
+
+    const {
+        transcript,
+        listening,
+        resetTranscript,
+        browserSupportsSpeechRecognition
+    } = useSpeechRecognition();
+
+    useEffect(() => {
+        if (!browserSupportsSpeechRecognition) {
+            console.warn("Browser does not support speech recognition.");
+        }
+    }, [browserSupportsSpeechRecognition]);
+
+    // Cleanup speech synthesis on unmount
+    useEffect(() => {
+        return () => {
             window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1;
-            utterance.pitch = 1;
-            utterance.volume = 0.9;
-            window.speechSynthesis.speak(utterance);
+            if (silenceTimerRef.current) {
+                clearTimeout(silenceTimerRef.current);
+            }
+        };
+    }, []);
+
+    // Initial Welcome Check
+    useEffect(() => {
+        const hasVisited = localStorage.getItem('hasVisited_v3');
+        if (!hasVisited) {
+            setTimeout(() => {
+                setShowWelcome(true);
+                const greeting = "Hello! I am your Digital AI Hub assistant. Shall I give you a quick tour?";
+                speak(greeting);
+            }, 2000); // Delay for page load
         }
     }, []);
 
-    // Scroll to Section Helper
-    const scrollToSection = (sectionId) => {
-        const element = document.getElementById(sectionId);
-        if (element) {
-            const offset = 80;
-            const elementPosition = element.getBoundingClientRect().top;
-            const offsetPosition = elementPosition + window.pageYOffset - offset;
-            window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+    // Tour Logic
+    useEffect(() => {
+        if (tourActive) {
+            console.log('🏁 Tour Active, Step:', currentStep);
+            const step = tourSteps[currentStep];
+            if (!step) {
+                console.log('✅ Tour Complete');
+                setTourActive(false);
+                setShowWelcome(false);
+                localStorage.setItem('hasVisited_v3', 'true');
+                speak("That concludes our tour. Feel free to ask me anything!");
+                setIsOpen(true);
+                return;
+            }
+
+            const executeStep = async () => {
+                // Navigate if needed
+                if (location.pathname !== step.page) {
+                    console.log('🔄 Navigating to:', step.page);
+                    navigate(step.page);
+                    // Wait for navigation
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+
+                // Handle Actions
+                // Handle Actions
+                if (step.action === 'slide') {
+                    if (window.homeHeroSwiper) {
+                        console.log('🖼️ Sliding to:', step.slideIndex);
+                        // Stop autoplay to preventing interference
+                        if (window.homeHeroSwiper.autoplay && window.homeHeroSwiper.autoplay.running) {
+                            window.homeHeroSwiper.autoplay.stop();
+                        }
+                        window.homeHeroSwiper.slideTo(step.slideIndex);
+                        // Wait for transition animation
+                        await new Promise(r => setTimeout(r, 1000));
+                    } else {
+                        console.warn('⚠️ Swiper not found');
+                    }
+                } else if (step.action === 'scroll' && step.sectionId) {
+                    const element = document.getElementById(step.sectionId);
+                    if (element) {
+                        console.log('📜 Scrolling to:', step.sectionId);
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Wait for scroll
+                        await new Promise(r => setTimeout(r, 800));
+                    }
+                }
+
+                // Speak
+                speak(step.text, () => {
+                    // On End Callback
+                    console.log('⏳ Step finished, waiting...');
+                    setTimeout(() => {
+                        setCurrentStep(prev => prev + 1);
+                    }, 1000);
+                });
+            };
+
+            executeStep();
         }
+    }, [tourActive, currentStep, location.pathname, navigate]);
+
+    // Initial greeting (Only if NOT touring/welcoming)
+    useEffect(() => {
+        if (isOpen && messages.length === 0 && !tourActive && !showWelcome) {
+            const greeting = "Hello! I am the Digital AI Hub Voice Assistant. How can I help you today?";
+            addMessage('assistant', greeting);
+            speak(greeting);
+        }
+    }, [isOpen, messages.length, tourActive, showWelcome]);
+
+
+
+    const startListening = () => {
+        window.speechSynthesis.cancel(); // Stop talking if listening
+        resetTranscript();
+        lastTranscriptRef.current = '';
+        setAgentState('listening');
+        SpeechRecognition.startListening({ continuous: true, language: 'en-US' });
     };
 
-    // OpenAI API Integration
-    const callOpenAI = async (text) => {
-        const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-        if (!apiKey) {
-            console.warn("No OpenAI API Key found.");
-            return null;
+    const stopListening = React.useCallback(() => {
+        SpeechRecognition.stopListening();
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+        }
+        setAgentState('idle');
+    }, []);
+
+
+
+    const handleSend = React.useCallback(async (text) => {
+        const userMessage = text || transcript;
+        if (!userMessage.trim() || isProcessing) return; // Prevent duplicate sends
+
+        stopListening();
+        setAgentState('processing');
+        setIsProcessing(true);
+        addMessage('user', userMessage);
+
+        // Immediate reset to prevent double-triggering from useEffect
+        resetTranscript();
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
         }
 
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: "gpt-3.5-turbo",
-                    messages: [
-                        {
-                            role: "system",
-                            content: `You are a helper for 'Digital & AI Hub' website. 
-              Classify user intent into one of these SECTIONS: 'home', 'mission', 'projects', 'learning', 'initiatives', 'events', 'standards', 'team', 'dashboard', 'login'. 
-              If intent is unclear, use 'unknown'.
-              Reply in 'Banglish' (Bengali mixed with English) strictly. 
-              Keep reply very short (max 1 sentence).
-              Return JSON format: { "section": "string", "reply": "string" }`
-                        },
-                        { role: "user", content: text }
-                    ],
-                    temperature: 0.3,
-                    max_tokens: 60
-                })
+            // Update history
+            const newHistory = [...history, { role: 'user', content: userMessage }];
+            setHistory(newHistory);
+
+            // Send to backend
+            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/agent/chat`, {
+                message: userMessage,
+                history: history.slice(-10) // Keep last 10 messages for context
             });
 
-            const data = await response.json();
-            if (data.choices && data.choices[0]) {
-                let content = data.choices[0].message.content;
-                content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-                return JSON.parse(content);
-            }
-        } catch (error) {
-            console.error("OpenAI Error:", error);
-        }
-        return null;
-    };
+            const reply = response.data.reply;
+            addMessage('assistant', reply);
+            setHistory([...newHistory, { role: 'assistant', content: reply }]);
 
-    const processCommand = useCallback(async (cmd) => {
-        const commandStart = cmd.toLowerCase();
-        console.log('Voice Command:', commandStart);
-        setFeedback('Thinking...');
+            // Check if response contains navigation action
+            let textToSpeak = reply;
+            try {
+                // Look for navigation JSON in the reply
+                const navigationMatch = reply.match(/\{[^}]*"action"\s*:\s*"navigate"[^}]*\}/); if (navigationMatch) {
+                    const navData = JSON.parse(navigationMatch[0]);
 
-        // Try OpenAI Only
-        const aiResponse = await callOpenAI(commandStart);
+                    // Extract only the natural text part (before JSON)
+                    textToSpeak = reply.substring(0, navigationMatch.index).trim();
 
-        if (aiResponse && aiResponse.section && aiResponse.section !== 'unknown') {
-            console.log("AI Intent:", aiResponse);
-            const { section, reply } = aiResponse;
+                    if (navData.page) {
+                        console.log('Navigating to:', navData.page, 'Section:', navData.section);
 
-            if (section === 'login') {
-                const event = new CustomEvent('open-auth-modal');
-                window.dispatchEvent(event);
-            } else if (section === 'dashboard') {
-                navigate('/admin/dashboard');
-            } else {
-                if (location.pathname !== '/') {
-                    navigate('/');
-                    setTimeout(() => scrollToSection(section), 500);
-                } else {
-                    scrollToSection(section);
+                        // Navigate to page
+                        setTimeout(() => {
+                            navigate(navData.page);
+
+                            // If there's a section, scroll to it after navigation
+                            if (navData.section) {
+                                setTimeout(() => {
+                                    const element = document.getElementById(navData.section);
+                                    if (element) {
+                                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }
+                                }, 500); // Wait for page to load
+                            }
+                        }, 1000); // Navigate after speaking
+                    }
                 }
+            } catch {
+                // Not a navigation response, ignore
+                console.log('No navigation action detected');
             }
 
-            speak(reply);
-            setFeedback('AI: ' + reply);
-        } else {
-            // Fallback or No Key Error
-            const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-            if (!apiKey) {
-                const msg = "Please add OpenAI API Key to .env file.";
-                setFeedback('No API Key');
-                speak(msg);
-            } else {
-                const msg = "Bujhte pari nai."; // Fallback response in Banglish
-                setFeedback('Unclear');
-                speak(msg);
-            }
+            speak(textToSpeak);
+
+        } catch (error) {
+            console.error('Error sending message:', error);
+            console.error('API Error Details:', error.response?.status, error.response?.data);
+            const errorMessage = "Sorry, I encountered an error. Please check your connection or API key.";
+            setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+            speak(errorMessage);
+        } finally {
+            setIsProcessing(false);
+            // resetTranscript(); // Moved to top
         }
-    }, [navigate, speak, location.pathname]);
+    }, [history, resetTranscript, isProcessing, navigate, transcript, stopListening]);
 
-    // Initialize Speech Recognition
+    // Auto-send when silence is detected or listening stops
     useEffect(() => {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            setIsSupported(false);
-            return;
+        if (!listening && transcript && !isProcessing) {
+            handleSend(transcript);
         }
+    }, [listening, transcript, handleSend, isProcessing, navigate]);
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => {
-            setIsListening(true);
-            setFeedback('Ami shunchi...');
-        };
-
-        recognition.onresult = (event) => {
-            const last = event.results.length - 1;
-            const command = event.results[last][0].transcript;
-            setTranscript(command);
-            processCommand(command);
-        };
-
-        recognition.onerror = (event) => {
-            if (event.error === 'not-allowed') {
-                setIsListening(false);
-                shouldListenRef.current = false;
-                speak("Microphone permission den nai.");
+    // Voice Activity Detection - Auto-send after 1.5s silence
+    useEffect(() => {
+        if (listening && transcript) {
+            // Clear existing timer
+            if (silenceTimerRef.current) {
+                clearTimeout(silenceTimerRef.current);
             }
-        };
 
-        recognition.onend = () => {
-            if (shouldListenRef.current) {
-                recognition.start();
-            } else {
-                setIsListening(false);
-            }
-        };
+            // Check if transcript changed
+            if (transcript !== lastTranscriptRef.current) {
+                lastTranscriptRef.current = transcript;
 
-        recognitionRef.current = recognition;
-    }, [processCommand, speak]);
-
-    const toggleListening = () => {
-        if (shouldListenRef.current) {
-            shouldListenRef.current = false;
-            recognitionRef.current.stop();
-            setIsListening(false);
-            hasGreetedRef.current = false;
-        } else {
-            shouldListenRef.current = true;
-            recognitionRef.current.start();
-            if (!hasGreetedRef.current) {
-                speak("Ami online achi. Kivabe sahajjo korte pari?");
-                hasGreetedRef.current = true;
+                // Set new timer for 1.5s silence
+                silenceTimerRef.current = setTimeout(() => {
+                    if (transcript.trim()) {
+                        handleSend();
+                    }
+                }, 1500);
             }
         }
+    }, [transcript, listening, handleSend]);
+
+    const speak = (text, onEnd) => {
+        if (!text) return;
+        console.log('🗣️ Speaking:', text);
+
+        setAgentState('speaking');
+
+        // Remove markdown or heavy formatting if needed for TTS
+        const cleanText = text.replace(/[*#_]/g, '');
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        // Store reference to prevent GC
+        window.currentUtterance = utterance;
+
+        // Try to find the best natural-sounding English voice
+        let voices = window.speechSynthesis.getVoices();
+
+        // Retry getting voices if empty
+        if (voices.length === 0) {
+            setTimeout(() => {
+                voices = window.speechSynthesis.getVoices();
+                // ... logic could be retried but default voice works
+            }, 100);
+        }
+
+        // Priority list for most natural voices:
+        const bestVoice =
+            voices.find(v => v.name === 'Google UK English Female') ||
+            voices.find(v => v.name === 'Microsoft David Desktop - English (United States)') ||
+            voices.find(v => v.name === 'Microsoft Zira Desktop - English (United States)') ||
+            voices.find(v => v.name === 'Google US English') ||
+            voices.find(v => v.name.includes('Google') && v.lang.includes('en')) ||
+            voices.find(v => v.name.includes('Microsoft') && v.lang.includes('en')) ||
+            voices.find(v => v.lang === 'en-GB') ||
+            voices.find(v => v.lang === 'en-US') ||
+            voices.find(v => v.lang.includes('en'));
+
+        if (bestVoice) {
+            utterance.voice = bestVoice;
+            console.log('Using voice:', bestVoice.name);
+        }
+
+        // Adjust for more natural speech
+        utterance.rate = 0.95;  // Slightly slower for clarity
+        utterance.pitch = 1.0;  // Natural pitch
+        utterance.volume = 1.0; // Full volume
+
+        // Set state back to idle when done speaking
+        utterance.onend = () => {
+            console.log('✅ Speech ended');
+            setAgentState('idle');
+            if (onEnd) onEnd();
+        };
+
+        utterance.onerror = (e) => {
+            console.error('❌ Speech error:', e);
+            setAgentState('idle');
+            if (onEnd) onEnd(); // Proceed anyway
+        };
+
+        window.speechSynthesis.cancel(); // Cancel previous
+        window.speechSynthesis.speak(utterance);
     };
 
-    if (!isSupported) return null;
+    const addMessage = (role, content) => {
+        setMessages(prev => [...prev, { role, content }]);
+    };
+
+    if (!browserSupportsSpeechRecognition) {
+        return null; // Or render a fallback UI
+    }
 
     return (
-        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-2">
-            {(isListening || transcript || feedback) && (
-                <div className="mb-2 bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-4 border border-blue-100 min-w-[200px] animate-in slide-in-from-bottom-5 fade-in duration-300">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                            {isListening ? <Activity size={12} className="animate-pulse text-green-500" /> : <MessageSquare size={12} />}
-                            {isListening ? 'AI Agent (OpenAI Mode)' : 'Agent Paused'}
-                        </span>
-                        <button onClick={() => {
-                            shouldListenRef.current = false;
-                            recognitionRef.current.stop();
-                            setTranscript('');
-                            setFeedback('')
-                        }} className="text-gray-400 hover:text-gray-600">
-                            <X size={14} />
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+            {/* Welcome Tour Modal */}
+            {showWelcome && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-blue-100 dark:border-blue-900 mx-auto">
+                        <div className="flex justify-center mb-4">
+                            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center animate-bounce">
+                                <Bot className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-bold text-center text-gray-900 dark:text-white mb-2">
+                            Welcome to Digital AI Hub!
+                        </h3>
+                        <p className="text-center text-gray-600 dark:text-gray-300 mb-6 font-medium">
+                            I'm your AI assistant. Would you like a quick guided voice tour of our platform?
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowWelcome(false);
+                                    localStorage.setItem('hasVisited_v3', 'true');
+                                    window.speechSynthesis.cancel();
+                                }}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                                No, Thanks
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowWelcome(false);
+                                    setTourActive(true);
+                                    setIsOpen(false); // Hide agent UI to focus on tour
+                                }}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium hover:shadow-lg hover:scale-105 transition-all shadow-blue-500/20"
+                            >
+                                Start Tour
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Chat Window */}
+            {isOpen && (
+                <div className="w-80 md:w-96 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col max-h-[500px] transition-all duration-300 animate-in slide-in-from-bottom-10 fade-in">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex justify-between items-center text-white">
+                        <div className="flex items-center gap-2">
+                            <Bot className="w-6 h-6" />
+                            <span className="font-semibold">AI Assistant</span>
+                        </div>
+                        <button
+                            onClick={() => setIsOpen(false)}
+                            className="hover:bg-white/20 p-1 rounded-full transition-colors"
+                        >
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
 
-                    {transcript ? (
-                        <p className="text-lg font-bold text-gray-800">"{transcript}"</p>
-                    ) : (
-                        <p className="text-sm text-gray-500 italic">{feedback || "Ami shunchi..."}</p>
-                    )}
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900/50 min-h-[300px]">
+                        {messages.map((msg, idx) => (
+                            <div
+                                key={idx}
+                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                            >
+                                <div
+                                    className={`max-w-[80%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user'
+                                        ? 'bg-blue-600 text-white rounded-tr-none'
+                                        : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none border border-gray-100 dark:border-gray-700'
+                                        }`}
+                                >
+                                    {msg.content}
+                                </div>
+                            </div>
+                        ))}
+                        {listening && (
+                            <div className="flex flex-col items-center gap-2 mt-2">
+                                <div className="flex items-center gap-1">
+                                    {[...Array(5)].map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className="w-1 bg-blue-600 rounded-full animate-pulse"
+                                            style={{
+                                                height: `${Math.random() * 20 + 10}px`,
+                                                animationDelay: `${i * 0.1}s`,
+                                                animationDuration: '0.6s'
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                                <span className="text-xs text-blue-600 font-medium">Listening... {transcript}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Controls */}
+                    <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex flex-col items-center gap-2">
+                        <button
+                            onClick={listening ? stopListening : startListening}
+                            disabled={isProcessing}
+                            className={`p-4 rounded-full shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${listening
+                                ? 'bg-red-500 hover:bg-red-600 ring-4 ring-red-100 dark:ring-red-900/30 animate-pulse'
+                                : agentState === 'processing'
+                                    ? 'bg-yellow-500 ring-4 ring-yellow-100 dark:ring-yellow-900/30'
+                                    : agentState === 'speaking'
+                                        ? 'bg-green-500 ring-4 ring-green-100 dark:ring-green-900/30 animate-pulse'
+                                        : 'bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-100 dark:ring-blue-900/30'
+                                }`}
+                        >
+                            {listening ? (
+                                <MicOff className="w-6 h-6 text-white" />
+                            ) : agentState === 'processing' ? (
+                                <Loader2 className="w-6 h-6 text-white animate-spin" />
+                            ) : (
+                                <Mic className="w-6 h-6 text-white" />
+                            )}
+                        </button>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                            {agentState === 'listening' && 'Listening...'}
+                            {agentState === 'processing' && 'Processing...'}
+                            {agentState === 'speaking' && 'Speaking...'}
+                            {agentState === 'idle' && 'Click to speak'}
+                        </span>
+                    </div>
                 </div>
             )}
 
-            <button
-                onClick={toggleListening}
-                className={`p-4 rounded-full shadow-lg shadow-blue-500/20 transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center 
-          ${isListening
-                        ? 'bg-blue-600 text-white animate-pulse ring-4 ring-blue-200'
-                        : 'bg-[#003359] text-white hover:bg-blue-600'}`}
-            >
-                {isListening ? <Bot size={28} className="animate-bounce" /> : <Bot size={28} />}
-            </button>
+            {/* Toggle Button */}
+            {!isOpen && (
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className="group flex items-center justify-center p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 ring-4 ring-blue-100 dark:ring-blue-900/30"
+                >
+                    <Bot className="w-8 h-8" />
+                    <span className="absolute right-full mr-4 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        Ask AI Assistant
+                    </span>
+                </button>
+            )}
         </div>
     );
 };

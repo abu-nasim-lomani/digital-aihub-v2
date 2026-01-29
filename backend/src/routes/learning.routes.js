@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/authorize.js';
 import express from 'express';
 
@@ -7,10 +7,17 @@ const prisma = new PrismaClient();
 const router = express.Router();
 
 // GET /api/learning - Get all learning modules
-router.get('/', async (req, res, next) => {
+router.get('/', optionalAuth, async (req, res, next) => {
     try {
+        const where = {};
+
+        // If not admin, only show published
+        if (!req.user?.isAdmin) {
+            where.status = 'published';
+        }
+
         const modules = await prisma.learningModule.findMany({
-            where: { status: 'published' },
+            where,
             orderBy: { createdAt: 'desc' }
         });
 

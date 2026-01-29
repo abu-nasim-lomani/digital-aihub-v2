@@ -28,6 +28,7 @@ model User {
   createdInitiatives   Initiative[]      @relation("InitiativeCreator")
   createdEvents        Event[]           @relation("EventCreator")
   createdSupportRequests SupportRequest[] @relation("SupportRequestCreator")
+  createdLearningModules LearningModule[] @relation("LearningCreator")
 
   @@map("users")
 }
@@ -105,14 +106,23 @@ model Initiative {
 
 model LearningModule {
   id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  moduleTitle String    @map("module_title")
-  content     String?
-  videoUrl    String?   @map("video_url")
-  resources   String[]
-  curriculum  String?
+  title       String
+  description String?
+  type        String    @default("pdf") // pdf, ppt, doc
+  category    String
+  fileUrl     String?   @map("file_url")
+  fileSize    String?   @map("file_size")
+  pages       Int?
+  downloads   Int       @default(0)
+  thumbnailUrl String?  @map("thumbnail_url")
+  
   status      String    @default("pending")
+  createdBy   String?   @map("created_by") @db.Uuid
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  creator User? @relation("LearningCreator", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@map("learning_modules")
 }

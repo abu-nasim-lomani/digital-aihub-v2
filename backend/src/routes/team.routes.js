@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/authorize.js';
 import express from 'express';
 
@@ -7,13 +7,18 @@ const prisma = new PrismaClient();
 const router = express.Router();
 
 // GET /api/team - Get all team members
-router.get('/', async (req, res, next) => {
+router.get('/', optionalAuth, async (req, res, next) => {
     try {
         const { section } = req.query;
-        const where = { status: 'published' };
+        const where = {};
+
+        // Filter for non-admins
+        if (!req.user?.isAdmin) {
+            where.status = 'published';
+        }
 
         if (section) {
-            where.section = section; // 'team' or 'advisory'
+            where.section = section;
         }
 
         const team = await prisma.team.findMany({
@@ -45,20 +50,15 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST /api/team - Create team member (admin only)
-// POST /api/team
-import { upload, uploadToSupabase } from '../utils/uploadHelper.js';
-
-router.post('/', authenticate, requireAdmin, upload.single('photo'), async (req, res, next) => {
+router.post('/', authenticate, requireAdmin, async (req, res, next) => {
     try {
-        let photoUrl = req.body.photoUrl;
-        if (req.file) {
-            photoUrl = await uploadToSupabase(req.file, 'uploads', 'team');
-        }
+        const { id: _id, ...rest } = req.body;
 
         const member = await prisma.team.create({
             data: {
-                ...req.body,
-                photoUrl
+                ...rest,
+                status: rest.status || 'pending',
+                displayOrder: rest.displayOrder ? parseInt(rest.displayOrder) : 0
             }
         });
 
@@ -71,9 +71,16 @@ router.post('/', authenticate, requireAdmin, upload.single('photo'), async (req,
 // PUT /api/team/:id - Update team member (admin only)
 router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
     try {
+        const { id: _id, ...rest } = req.body;
+
+        // Ensure displayOrder is an integer if present
+        if (rest.displayOrder !== undefined) {
+            rest.displayOrder = parseInt(rest.displayOrder);
+        }
+
         const member = await prisma.team.update({
             where: { id: req.params.id },
-            data: req.body
+            data: rest
         });
 
         res.json(member);

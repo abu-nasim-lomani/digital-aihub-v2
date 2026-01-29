@@ -7,10 +7,20 @@ const prisma = new PrismaClient();
 const router = express.Router();
 
 // GET /api/initiatives - Get all initiatives (published for public, all for admin)
-router.get('/', async (req, res, next) => {
+import { optionalAuth } from '../middleware/auth.js';
+
+router.get('/', optionalAuth, async (req, res, next) => {
     try {
-        const { year } = req.query;
-        const where = { status: 'published' };
+        const { year, status } = req.query;
+        let where = {};
+
+        // If not admin, only show published
+        if (!req.user?.isAdmin) {
+            where.status = 'published';
+        } else if (status) {
+            // Admin can filter by status
+            where.status = status;
+        }
 
         if (year) {
             const startDate = new Date(`${year}-01-01`);

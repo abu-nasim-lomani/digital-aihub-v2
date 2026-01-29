@@ -3,6 +3,7 @@ import { authAPI } from '../utils/api';
 
 const AuthContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -24,7 +25,7 @@ export const AuthProvider = ({ children }) => {
         try {
           const response = await authAPI.me();
           setCurrentUser(response.data);
-        } catch (error) {
+        } catch {
           // Token invalid or expired
           localStorage.removeItem('authToken');
           localStorage.removeItem('currentUser');
@@ -39,19 +40,15 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    try {
-      const response = await authAPI.login({ email, password });
-      const { token, user } = response.data;
+    const response = await authAPI.login({ email, password });
+    const { token, user } = response.data;
 
-      // Store token and user
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setCurrentUser(user);
+    // Store token and user
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    setCurrentUser(user);
 
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    return response.data;
   };
 
   const logout = async () => {
@@ -68,19 +65,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = async (email, password, fullName) => {
-    try {
-      const response = await authAPI.signup({ email, password, fullName });
-      const { token, user } = response.data;
+    const response = await authAPI.signup({ email, password, fullName });
+    const { token, user } = response.data;
 
-      // Store token and user
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setCurrentUser(user);
+    // Store token and user
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    setCurrentUser(user);
 
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    return response.data;
   };
 
   const value = {

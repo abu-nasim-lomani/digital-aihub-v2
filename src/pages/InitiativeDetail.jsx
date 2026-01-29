@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { initiativesAPI } from '../utils/api';
 import { ArrowLeft, Calendar, FileText, ExternalLink } from 'lucide-react';
@@ -9,11 +9,7 @@ const InitiativeDetail = () => {
   const [initiative, setInitiative] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchInitiative();
-  }, [id]);
-
-  const fetchInitiative = async () => {
+  const fetchInitiative = useCallback(async () => {
     try {
       setLoading(true);
       const response = await initiativesAPI.getById(id);
@@ -23,7 +19,11 @@ const InitiativeDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchInitiative();
+  }, [fetchInitiative]);
 
   if (loading) {
     return (

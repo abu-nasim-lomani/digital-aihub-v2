@@ -5,12 +5,14 @@ dotenv.config();
 
 const { Client } = pg;
 
+/* eslint-disable no-undef */
 const client = new Client({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
 async function test() {
+    // eslint-disable-next-line no-undef
     const url = process.env.DATABASE_URL || '';
     console.log("Connecting to:", url.replace(/:[^:]*@/, ':****@'));
 

@@ -42,13 +42,6 @@ const Initiatives = () => {
     return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800';
   };
 
-  const stats = [
-    { label: 'Ongoing Initiatives', value: initiatives.filter(i => i.status === 'published').length, icon: Lightbulb, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { label: 'Total Initiatives', value: initiatives.length, icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-50' },
-    { label: 'Active Programs', value: initiatives.filter(i => i.status === 'published').length, icon: CheckCircle, color: 'text-teal-500', bg: 'bg-teal-50' },
-    { label: 'Partners', value: '15+', icon: FileText, color: 'text-orange-500', bg: 'bg-orange-50' },
-  ];
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

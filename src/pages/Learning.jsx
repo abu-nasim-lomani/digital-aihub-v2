@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { learningAPI } from '../utils/api';
-import { BookOpen, Video, FileText, Clock, Award, Star, Play, ExternalLink, ChevronRight } from 'lucide-react';
+import { BookOpen, FileText, Download, Eye, Search, Filter, ArrowRight, File, Award } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const Learning = () => {
-  const [modules, setModules] = useState([]);
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
     fetchModules();
@@ -15,8 +14,19 @@ const Learning = () => {
   const fetchModules = async () => {
     try {
       const response = await learningAPI.getAll();
-      const published = response.data.filter(m => m.status === 'published');
-      setModules(published);
+      // Filter published only for public view (if API doesn't already)
+      // Our previous seeding script set status to 'published'
+      // API might return mapped array or object. Based on 'api.js' it likely returns axios response.
+      // Usually api.js returns response.data or just data. Let's assume response.data based on typical axios.
+      // Wait, api.js 'getAll' often returns the data directly if interceptors handle it, or response.
+      // Let's assume response.data or response is the array.
+      // Safest is to check both or assume standard pattern in this codebase.
+      // Checking usage in ManageInitiatives: names = await initiativesAPI.getAll(). 
+      // So it returns the array directly.
+
+      const modules = Array.isArray(response) ? response : (response.data || []);
+      const published = modules.filter(m => m.status === 'published');
+      setData(published);
     } catch (error) {
       console.error('Error fetching learning modules:', error);
     } finally {
@@ -24,36 +34,36 @@ const Learning = () => {
     }
   };
 
-  const categories = ['All', 'Digital Infrastructure', 'AI & Data', 'Policy & Governance', 'Capacity Building'];
-
-  const filteredModules = modules.filter(module => {
-    if (selectedCategory === 'All') return true;
-    return module.category === selectedCategory;
-  });
-
-  // Helper to get thumbnail
-  const getThumbnail = (module) => {
-    if (module.thumbnailUrl) return module.thumbnailUrl;
-    const title = module.moduleTitle?.toLowerCase() || '';
-    if (title.includes('ai') || title.includes('data')) return 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800';
-    if (title.includes('digital') || title.includes('infra')) return 'https://images.unsplash.com/photo-1558494949-ef2a278812bc?auto=format&fit=crop&q=80&w=800';
-    if (title.includes('policy') || title.includes('gov')) return 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=800';
-    return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingSpinner />
       </div>
     );
   }
 
+  // Use real data
+  const modules = data;
+
+  const getFileIcon = (type) => {
+    const t = type?.toLowerCase();
+    if (t === 'pdf') return <FileText size={32} className="text-red-500" />;
+    if (t === 'ppt' || t === 'pptx') return <File size={32} className="text-orange-500" />;
+    return <File size={32} className="text-gray-400" />;
+  };
+
+  const getCardColor = (type) => {
+    const t = type?.toLowerCase();
+    if (t === 'pdf') return 'bg-red-50 border-red-100';
+    if (t === 'ppt' || t === 'pptx') return 'bg-orange-50 border-orange-100';
+    return 'bg-gray-50 border-gray-100';
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <div className="min-h-screen bg-gray-50 font-sans">
+      {/* Hero Section (Original Design) */}
       <div className="bg-gradient-to-br from-[#003359] via-[#004d7a] to-[#003359] text-white pt-20 pb-16 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
 
         <div className="section-container relative z-10">
           <div className="max-w-4xl">
@@ -76,172 +86,97 @@ const Learning = () => {
         <div className="absolute bottom-10 left-10 w-96 h-96 bg-purple-400/10 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="section-container py-12">
-        {/* Category Filter */}
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar mb-10 pb-2">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-6 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${selectedCategory === category
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30'
-                  : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                }`}
-            >
-              {category}
-            </button>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+        {/* Statistics Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          {[
+            { label: 'Total Resources', value: `${modules.length}+`, icon: FileText },
+            { label: 'Active Downloads', value: '15.2k', icon: Download },
+            { label: 'Avg. Rating', value: '4.8/5', icon: Eye },
+            { label: 'Updated', value: 'Today', icon: BookOpen }
+          ].map((stat, idx) => (
+            <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                <stat.icon size={20} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-wide">{stat.label}</p>
+              </div>
+            </div>
           ))}
         </div>
 
-        {/* Udemy-Style Course Grid */}
-        {filteredModules.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100">
-            <BookOpen className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900">No modules found</h3>
-            <p className="text-gray-500">Check back soon for new learning content</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredModules.map((module) => (
-              <div key={module.id} className="bg-white rounded-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-300 group cursor-pointer">
-                {/* Thumbnail */}
-                <div className="relative h-48 overflow-hidden bg-gray-100">
-                  <img
-                    src={getThumbnail(module)}
-                    alt={module.moduleTitle}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
+        {/* Documents Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {modules.map((doc) => (
+            <div key={doc.id} className="group bg-white rounded-2xl border border-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col">
 
-                  {/* Type Badge */}
-                  <div className="absolute top-3 left-3">
-                    {module.videoUrl ? (
-                      <span className="flex items-center gap-1 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded">
-                        <Video size={12} />
-                        Video
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded">
-                        <FileText size={12} />
-                        Article
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Play Overlay for Videos */}
-                  {module.videoUrl && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
-                        <Play size={24} className="text-gray-900 ml-1" />
-                      </div>
-                    </div>
-                  )}
+              {/* Card Header (File Preview Look) */}
+              <div className={`h-32 ${getCardColor(doc.type)} p-6 flex flex-col justify-between relative overflow-hidden group-hover:bg-opacity-80 transition-colors`}>
+                <div className="absolute top-4 right-4 opacity-10 transform rotate-12 group-hover:scale-110 transition-transform">
+                  {getFileIcon(doc.type)}
                 </div>
 
-                {/* Content */}
-                <div className="p-4">
-                  {/* Title */}
-                  <h3 className="font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                    {module.moduleTitle}
-                  </h3>
-
-                  {/* Description */}
-                  {module.content && (
-                    <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                      {module.content}
-                    </p>
-                  )}
-
-                  {/* Meta Info */}
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-                    {module.duration && (
-                      <span className="flex items-center gap-1">
-                        <Clock size={12} />
-                        {module.duration}
-                      </span>
-                    )}
-                    {module.level && (
-                      <span className="flex items-center gap-1">
-                        <Award size={12} />
-                        {module.level}
-                      </span>
-                    )}
+                <div className="flex justify-between items-start z-10">
+                  <div className="bg-white p-2 rounded-lg shadow-sm">
+                    {getFileIcon(doc.type)}
                   </div>
-
-                  {/* Instructor */}
-                  {module.instructor && (
-                    <p className="text-xs text-gray-500 mb-3">
-                      By <span className="font-semibold text-gray-700">{module.instructor}</span>
-                    </p>
-                  )}
-
-                  {/* Rating (if available) */}
-                  {module.rating && (
-                    <div className="flex items-center gap-1 mb-3">
-                      <span className="text-sm font-bold text-gray-900">{module.rating}</span>
-                      <div className="flex">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            size={14}
-                            className={i < Math.floor(module.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
-                          />
-                        ))}
-                      </div>
-                      {module.reviewCount && (
-                        <span className="text-xs text-gray-500">({module.reviewCount})</span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* CTA */}
-                  <div className="pt-3 border-t border-gray-100">
-                    {module.videoUrl ? (
-                      <a
-                        href={module.videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded transition-colors"
-                      >
-                        <Play size={16} />
-                        Watch Now
-                      </a>
-                    ) : (
-                      <button className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded transition-colors">
-                        <BookOpen size={16} />
-                        Read Article
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Resources */}
-                  {module.resources && module.resources.length > 0 && (
-                    <div className="mt-2">
-                      <button className="w-full py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 rounded transition-colors">
-                        {module.resources.length} Resource{module.resources.length > 1 ? 's' : ''} Available
-                      </button>
-                    </div>
-                  )}
+                  <span className="px-2 py-1 bg-white/60 backdrop-blur rounded text-xs font-bold text-gray-600 uppercase">
+                    {doc.type ? doc.type.toUpperCase() : 'DOC'}
+                  </span>
+                </div>
+                <div className="z-10 text-xs font-medium text-gray-500">
+                  {doc.pages || '?'} Pages • {doc.fileSize || 'Unknown Size'}
                 </div>
               </div>
-            ))}
+
+              {/* Card Body */}
+              <div className="p-5 flex-1 flex flex-col">
+                <div className="mb-auto">
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs font-semibold text-blue-600 mb-2 block">{doc.category}</span>
+                    <span className="text-xs text-gray-400">{new Date(doc.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-2 leading-tight group-hover:text-blue-600 transition-colors">
+                    {doc.title}
+                  </h3>
+                  <p className="text-gray-500 text-sm line-clamp-2 mb-4">
+                    {doc.description}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <Download size={14} />
+                    <span>{doc.downloads}</span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Preview">
+                      <Eye size={18} />
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors">
+                      <span>Download</span>
+                      <ArrowRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {modules.length === 0 && (
+          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100">
+            <Search className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900">No documents found</h3>
+            <p className="text-gray-500">Check back soon for new resources</p>
           </div>
         )}
 
-        {/* CTA Section */}
-        <div className="mt-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-3xl p-12 text-white text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzR2Mi1oMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnptMC00djJoMnYtMmgtMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20"></div>
-
-          <div className="relative z-10">
-            <Award size={48} className="mx-auto mb-4 text-yellow-300" />
-            <h2 className="text-3xl font-bold mb-4">Ready to Enhance Your Digital Skills?</h2>
-            <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join our comprehensive training programs and become a digital transformation leader
-            </p>
-            <button className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold hover:bg-blue-50 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105">
-              Explore All Programs
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

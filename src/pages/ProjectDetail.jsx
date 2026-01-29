@@ -1,40 +1,46 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { projectsAPI, supportRequestsAPI } from '../utils/api';
-import { ArrowLeft, Calendar, FileText, ExternalLink, Briefcase, User, CheckCircle, Clock } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { ArrowLeft, Calendar, FileText, ExternalLink, Briefcase, User, CheckCircle, Clock, Plus, BarChart2 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SupportRequestForm from '../components/forms/SupportRequestForm';
 
 const ProjectDetail = () => {
   const { id } = useParams();
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [supportRequests, setSupportRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showSupportForm, setShowSupportForm] = useState(false);
+
+  const fetchProjectData = async () => {
+    try {
+      setLoading(true);
+      // Fetch project and support requests in parallel
+      const [projectRes, supportRes] = await Promise.all([
+        projectsAPI.getById(id),
+        supportRequestsAPI.getAll()
+      ]);
+
+      setProject(projectRes.data);
+
+      // Filter support requests for this project
+      // Show only 'approved' requests (hides pending and declined)
+      const projectRequests = (supportRes.data || []).filter(
+        req => req.projectId === id && req.status === 'approved'
+      );
+      setSupportRequests(projectRequests);
+
+    } catch (error) {
+      console.error('Error fetching project data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProjectData = async () => {
-      try {
-        setLoading(true);
-        // Fetch project and support requests in parallel
-        const [projectRes, supportRes] = await Promise.all([
-          projectsAPI.getById(id),
-          supportRequestsAPI.getAll()
-        ]);
-
-        setProject(projectRes.data);
-
-        // Filter support requests for this project
-        const projectRequests = (supportRes.data || []).filter(
-          req => req.projectId === id
-        );
-        setSupportRequests(projectRequests);
-
-      } catch (error) {
-        console.error('Error fetching project data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProjectData();
   }, [id]);
 
@@ -62,28 +68,50 @@ const ProjectDetail = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-[#003359] text-white py-12">
-        <div className="section-container">
+      <div className="bg-[#003359] text-white py-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(45deg,#002845_25%,transparent_25%,transparent_75%,#002845_75%,#002845),linear-gradient(45deg,#002845_25%,transparent_25%,transparent_75%,#002845_75%,#002845)] bg-[length:20px_20px] opacity-[0.05]"></div>
+        <div className="section-container relative z-10">
           <Link to="/projects" className="inline-flex items-center gap-2 text-blue-200 hover:text-white mb-6 transition-colors font-semibold">
             <ArrowLeft size={20} />
             Back to Projects
           </Link>
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">{project.title}</h1>
-          <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-blue-100">
-            {project.status && (
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${project.status === 'published' ? 'bg-green-500/20 text-green-200 border border-green-500/30' :
-                project.status === 'pending' ? 'bg-yellow-500/20 text-yellow-200 border border-yellow-500/30' :
-                  'bg-gray-500/20 text-gray-200 border border-gray-500/30'
-                }`}>
-                {project.status === 'published' ? 'Active' : project.status}
-              </span>
-            )}
-            {project.createdAt && (
-              <span className="flex items-center gap-2 opacity-80">
-                <Calendar size={16} />
-                Started: {new Date(project.createdAt).toLocaleDateString()}
-              </span>
-            )}
+
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+              <h1 className="text-3xl md:text-5xl font-bold mb-4">{project.title}</h1>
+              <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-blue-100">
+                {project.status && (
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${project.status === 'published' ? 'bg-green-500/20 text-green-200 border border-green-500/30' :
+                    project.status === 'pending' ? 'bg-yellow-500/20 text-yellow-200 border border-yellow-500/30' :
+                      'bg-gray-500/20 text-gray-200 border border-gray-500/30'
+                    }`}>
+                    {project.status === 'published' ? 'Active' : project.status}
+                  </span>
+                )}
+                {project.createdAt && (
+                  <span className="flex items-center gap-2 opacity-80">
+                    <Calendar size={16} />
+                    Started: {new Date(project.createdAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                if (!currentUser) {
+                  if (confirm("Please login to submit a support request.")) {
+                    navigate('/login');
+                  }
+                  return;
+                }
+                setShowSupportForm(true);
+              }}
+              className="bg-white text-[#003359] hover:bg-blue-50 font-bold py-3 px-6 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all transform hover:scale-105 flex items-center gap-2"
+            >
+              <Plus size={20} className="stroke-[3px]" />
+              <span className="text-base tracking-wide uppercase">Request Support</span>
+            </button>
           </div>
         </div>
       </div>
@@ -164,6 +192,9 @@ const ProjectDetail = () => {
                 <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
                   <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 font-medium">No support requests found for this project</p>
+                  <button onClick={() => setShowSupportForm(true)} className="mt-4 text-blue-600 font-bold hover:underline">
+                    Be the first to request support
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -172,8 +203,8 @@ const ProjectDetail = () => {
                       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-3">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${req.status === 'resolved' ? 'bg-green-100 text-green-700 border-green-200' :
-                              req.status === 'viewed' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${req.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' :
+                              req.status === 'declined' ? 'bg-red-100 text-red-700 border-red-200' :
                                 'bg-yellow-100 text-yellow-700 border-yellow-200'
                               }`}>
                               {req.status || 'Pending'}
@@ -194,6 +225,24 @@ const ProjectDetail = () => {
                       </div>
 
                       <p className="text-sm text-gray-600 mb-4 line-clamp-2">{req.impact}</p>
+
+                      {/* Progress Bar for Approved Requests */}
+                      {req.status === 'approved' && (
+                        <div className="mb-4">
+                          <div className="flex justify-between items-center mb-1.5">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                              <BarChart2 size={12} /> Progress
+                            </span>
+                            <span className="text-xs font-bold text-blue-600">{req.progress || 0}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                              style={{ width: `${req.progress || 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-4 text-xs text-gray-500 border-t border-gray-200 pt-3">
                         <div className="flex items-center gap-1.5">
@@ -235,7 +284,7 @@ const ProjectDetail = () => {
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <span className="text-blue-200 text-sm">Resolved</span>
                   <span className="font-bold text-2xl text-green-300">
-                    {supportRequests.filter(r => r.status === 'resolved').length}
+                    {supportRequests.filter(r => r.status === 'approved' && r.progress === 100).length}
                   </span>
                 </div>
                 <div className="pt-2">
@@ -260,6 +309,15 @@ const ProjectDetail = () => {
 
         </div>
       </div>
+
+      <SupportRequestForm
+        isOpen={showSupportForm}
+        onClose={() => setShowSupportForm(false)}
+        projects={[project]}
+        currentUser={currentUser}
+        initialProjectId={project.id}
+        onSuccess={fetchProjectData}
+      />
     </div>
   );
 };

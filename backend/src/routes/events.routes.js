@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/authorize.js';
 import express from 'express';
 
@@ -7,13 +7,19 @@ const prisma = new PrismaClient();
 const router = express.Router();
 
 // GET /api/events - Get all events
-router.get('/', async (req, res, next) => {
+// GET /api/events - Get all events
+router.get('/', optionalAuth, async (req, res, next) => {
     try {
         const { type, year } = req.query;
-        const where = { status: 'published' };
+        const where = {};
+
+        // Filter for non-admins
+        if (!req.user?.isAdmin) {
+            where.status = { in: ['upcoming', 'completed', 'published'] };
+        }
 
         if (type) {
-            where.type = type; // 'upcoming' or 'archive'
+            where.type = type;
         }
 
         if (year) {
@@ -54,11 +60,19 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST /api/events - Create event (admin only)
+// POST /api/events - Create event (admin only)
 router.post('/', authenticate, requireAdmin, async (req, res, next) => {
     try {
+        // Remove id if present (frontend might send id: null)
+        const { id, ...rest } = req.body;
+
+        if (rest.date) {
+            rest.date = new Date(rest.date).toISOString();
+        }
+
         const event = await prisma.event.create({
             data: {
-                ...req.body,
+                ...rest,
                 createdBy: req.user.userId
             }
         });
@@ -72,9 +86,16 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
 // PUT /api/events/:id - Update event (admin only)
 router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
     try {
+        // Remove id to avoid trying to update key or handle mismatch
+        const { id, ...rest } = req.body;
+
+        if (rest.date) {
+            rest.date = new Date(rest.date).toISOString();
+        }
+
         const event = await prisma.event.update({
             where: { id: req.params.id },
-            data: req.body
+            data: rest
         });
 
         res.json(event);
