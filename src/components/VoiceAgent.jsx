@@ -184,7 +184,11 @@ const VoiceAgent = () => {
             setHistory(newHistory);
 
             // Send to backend
-            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/agent/chat`, {
+            const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/agent/chat`;
+            console.log('📡 Sending to API:', apiUrl);
+            console.log('📤 Message:', userMessage);
+
+            const response = await axios.post(apiUrl, {
                 message: userMessage,
                 history: history.slice(-10) // Keep last 10 messages for context
             });
@@ -243,7 +247,9 @@ const VoiceAgent = () => {
 
     // Auto-send when silence is detected or listening stops
     useEffect(() => {
+        console.log('🔍 Auto-send check:', { listening, transcript, isProcessing });
         if (!listening && transcript && !isProcessing) {
+            console.log('✅ Triggering handleSend with:', transcript);
             handleSend(transcript);
         }
     }, [listening, transcript, handleSend, isProcessing, navigate]);
