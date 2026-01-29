@@ -150,16 +150,24 @@ const VoiceAgent = () => {
         resetTranscript();
         lastTranscriptRef.current = '';
         setAgentState('listening');
-        SpeechRecognition.startListening({ continuous: true, language: 'en-US' });
+        console.log('▶️ Starting speech recognition...');
+        try {
+            SpeechRecognition.startListening({ continuous: true, language: 'en-US' });
+            console.log('✅ Speech recognition started');
+        } catch (error) {
+            console.error('❌ Failed to start speech recognition:', error);
+        }
     };
 
     const stopListening = React.useCallback(() => {
+        console.log('⏹️ stopListening called. Current transcript:', transcript);
         SpeechRecognition.stopListening();
+        console.log('✅ Speech recognition stopped');
         if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
         }
         setAgentState('idle');
-    }, []);
+    }, [transcript]);
 
 
 
@@ -253,6 +261,13 @@ const VoiceAgent = () => {
             handleSend(transcript);
         }
     }, [listening, transcript, handleSend, isProcessing, navigate]);
+
+    // Debug: Log transcript changes
+    useEffect(() => {
+        if (transcript) {
+            console.log('📝 Transcript updated:', transcript, '| Listening:', listening);
+        }
+    }, [transcript, listening]);
 
     // Voice Activity Detection - Auto-send after 1.5s silence
     useEffect(() => {
