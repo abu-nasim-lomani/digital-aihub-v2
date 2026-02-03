@@ -53,6 +53,188 @@ const VoiceAgent = () => {
         }
     }, [browserSupportsSpeechRecognition]);
 
+
+
+    // --- Helper Functions (Defined before usage in Effects) ---
+
+    const speak = React.useCallback((text, onEnd) => {
+        if (!text) return;
+
+        // If muted, just log and skip audio, but ensure onEnd is called to proceed with tours etc if needed
+        if (isMuted) {
+            console.log('🔇 Agent is muted. Skipping audio:', text);
+            if (onEnd) setTimeout(onEnd, 1000); // Fake delay for pacing
+            return;
+        }
+
+        console.log('🗣️ Speaking:', text);
+
+        setAgentState('speaking');
+
+        // Remove markdown or heavy formatting if needed for TTS
+        const cleanText = text.replace(/[*#_]/g, '');
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        // Store reference to prevent GC
+        window.currentUtterance = utterance;
+
+        // Try to find the best natural-sounding English voice
+        let voices = window.speechSynthesis.getVoices();
+
+        // Retry getting voices if empty
+        if (voices.length === 0) {
+            setTimeout(() => {
+                voices = window.speechSynthesis.getVoices();
+                // ... logic could be retried but default voice works
+            }, 100);
+        }
+
+        // Priority list for most natural voices:
+        const bestVoice =
+            voices.find(v => v.name === 'Google UK English Female') ||
+            voices.find(v => v.name === 'Microsoft David Desktop - English (United States)') ||
+            voices.find(v => v.name === 'Microsoft Zira Desktop - English (United States)') ||
+            voices.find(v => v.name === 'Google US English') ||
+            voices.find(v => v.name.includes('Google') && v.lang.includes('en')) ||
+            voices.find(v => v.name.includes('Microsoft') && v.lang.includes('en')) ||
+            voices.find(v => v.lang === 'en-GB') ||
+            voices.find(v => v.lang === 'en-US') ||
+            voices.find(v => v.lang.includes('en'));
+
+        if (bestVoice) {
+            utterance.voice = bestVoice;
+            console.log('Using voice:', bestVoice.name);
+        }
+
+        // Adjust for more natural speech
+        utterance.rate = 0.95;  // Slightly slower for clarity
+        utterance.pitch = 1.0;  // Natural pitch
+        utterance.volume = 1.0; // Full volume
+
+        // Set state back to idle when done speaking
+        utterance.onend = () => {
+            console.log('✅ Speech ended');
+            setAgentState('idle');
+            if (onEnd) onEnd();
+        };
+
+        utterance.onerror = (e) => {
+            console.error('❌ Speech error:', e);
+            setAgentState('idle');
+            if (onEnd) onEnd(); // Proceed anyway
+        };
+
+        window.speechSynthesis.cancel(); // Cancel previous
+        window.speechSynthesis.speak(utterance);
+    }, [isMuted]);
+
+    const startListening = React.useCallback(() => {
+        window.speechSynthesis.cancel(); // Stop talking if listening
+        resetTranscript();
+        lastTranscriptRef.current = '';
+        setAgentState('listening');
+        console.log('▶️ Starting speech recognition...');
+        try {
+            SpeechRecognition.startListening({ continuous: true, language: 'en-US' });
+            console.log('✅ Speech recognition started');
+        } catch (error) {
+            console.error('❌ Failed to start speech recognition:', error);
+        }
+    }, [resetTranscript]);
+
+    const stopListening = React.useCallback(() => {
+        console.log('⏹️ stopListening called. Current transcript:', transcript);
+        SpeechRecognition.stopListening();
+        console.log('✅ Speech recognition stopped');
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+        }
+        setAgentState('idle');
+    }, [transcript]);
+
+    const handleSend = React.useCallback(async (text) => {
+        const userMessage = text || transcript;
+        if (!userMessage.trim() || isProcessing) return; // Prevent duplicate sends
+
+        stopListening();
+        setAgentState('processing');
+        setIsProcessing(true);
+        addMessage('user', userMessage);
+        setInputText(''); // Clear input if it was text
+
+        // Immediate reset to prevent double-triggering from useEffect
+        resetTranscript();
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+        }
+
+        try {
+            // Update history
+            const newHistory = [...history, { role: 'user', content: userMessage }];
+            setHistory(newHistory);
+
+            // Send to backend
+            const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/agent/chat`;
+            console.log('📡 Sending to API:', apiUrl);
+            console.log('📤 Message:', userMessage);
+
+            const response = await axios.post(apiUrl, {
+                message: userMessage,
+                history: history.slice(-10) // Keep last 10 messages for context
+            });
+
+            const reply = response.data.reply;
+            addMessage('assistant', reply);
+            setHistory([...newHistory, { role: 'assistant', content: reply }]);
+
+            // Check if response contains navigation action
+            let textToSpeak = reply;
+            try {
+                // Look for navigation JSON in the reply
+                const navigationMatch = reply.match(/\{[^}]*"action"\s*:\s*"navigate"[^}]*\}/); if (navigationMatch) {
+                    const navData = JSON.parse(navigationMatch[0]);
+
+                    // Extract only the natural text part (before JSON)
+                    textToSpeak = reply.substring(0, navigationMatch.index).trim();
+
+                    if (navData.page) {
+                        console.log('Navigating to:', navData.page, 'Section:', navData.section);
+
+                        // Navigate to page
+                        setTimeout(() => {
+                            navigate(navData.page);
+
+                            // If there's a section, scroll to it after navigation
+                            if (navData.section) {
+                                setTimeout(() => {
+                                    const element = document.getElementById(navData.section);
+                                    if (element) {
+                                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }
+                                }, 500); // Wait for page to load
+                            }
+                        }, 1000); // Navigate after speaking
+                    }
+                }
+            } catch {
+                // Not a navigation response, ignore
+                console.log('No navigation action detected');
+            }
+
+            speak(textToSpeak);
+
+        } catch (error) {
+            console.error('Error sending message:', error);
+            console.error('API Error Details:', error.response?.status, error.response?.data);
+            const errorMessage = "Sorry, I encountered an error. Please check your connection or API key.";
+            setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+            speak(errorMessage);
+        } finally {
+            setIsProcessing(false);
+            // resetTranscript(); // Moved to top
+        }
+    }, [history, resetTranscript, isProcessing, navigate, transcript, stopListening, speak]);
+
     // Cleanup speech synthesis on unmount
     useEffect(() => {
         return () => {
@@ -149,114 +331,7 @@ const VoiceAgent = () => {
 
 
 
-    const startListening = React.useCallback(() => {
-        window.speechSynthesis.cancel(); // Stop talking if listening
-        resetTranscript();
-        lastTranscriptRef.current = '';
-        setAgentState('listening');
-        console.log('▶️ Starting speech recognition...');
-        try {
-            SpeechRecognition.startListening({ continuous: true, language: 'en-US' });
-            console.log('✅ Speech recognition started');
-        } catch (error) {
-            console.error('❌ Failed to start speech recognition:', error);
-        }
-    }, [resetTranscript]);
 
-    const stopListening = React.useCallback(() => {
-        console.log('⏹️ stopListening called. Current transcript:', transcript);
-        SpeechRecognition.stopListening();
-        console.log('✅ Speech recognition stopped');
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-        }
-        setAgentState('idle');
-    }, [transcript]);
-
-
-
-    const handleSend = React.useCallback(async (text) => {
-        const userMessage = text || transcript;
-        if (!userMessage.trim() || isProcessing) return; // Prevent duplicate sends
-
-        stopListening();
-        setAgentState('processing');
-        setIsProcessing(true);
-        addMessage('user', userMessage);
-        setInputText(''); // Clear input if it was text
-
-        // Immediate reset to prevent double-triggering from useEffect
-        resetTranscript();
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-        }
-
-        try {
-            // Update history
-            const newHistory = [...history, { role: 'user', content: userMessage }];
-            setHistory(newHistory);
-
-            // Send to backend
-            const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/agent/chat`;
-            console.log('📡 Sending to API:', apiUrl);
-            console.log('📤 Message:', userMessage);
-
-            const response = await axios.post(apiUrl, {
-                message: userMessage,
-                history: history.slice(-10) // Keep last 10 messages for context
-            });
-
-            const reply = response.data.reply;
-            addMessage('assistant', reply);
-            setHistory([...newHistory, { role: 'assistant', content: reply }]);
-
-            // Check if response contains navigation action
-            let textToSpeak = reply;
-            try {
-                // Look for navigation JSON in the reply
-                const navigationMatch = reply.match(/\{[^}]*"action"\s*:\s*"navigate"[^}]*\}/); if (navigationMatch) {
-                    const navData = JSON.parse(navigationMatch[0]);
-
-                    // Extract only the natural text part (before JSON)
-                    textToSpeak = reply.substring(0, navigationMatch.index).trim();
-
-                    if (navData.page) {
-                        console.log('Navigating to:', navData.page, 'Section:', navData.section);
-
-                        // Navigate to page
-                        setTimeout(() => {
-                            navigate(navData.page);
-
-                            // If there's a section, scroll to it after navigation
-                            if (navData.section) {
-                                setTimeout(() => {
-                                    const element = document.getElementById(navData.section);
-                                    if (element) {
-                                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                    }
-                                }, 500); // Wait for page to load
-                            }
-                        }, 1000); // Navigate after speaking
-                    }
-                }
-            } catch {
-                // Not a navigation response, ignore
-                console.log('No navigation action detected');
-            }
-
-            speak(textToSpeak);
-
-        } catch (error) {
-            console.error('Error sending message:', error);
-            console.error('API Error Details:', error.response?.status, error.response?.data);
-            const errorMessage = "Sorry, I encountered an error. Please check your connection or API key.";
-            setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
-            speak(errorMessage);
-        } finally {
-            setIsProcessing(false);
-            // resetTranscript(); // Moved to top
-        }
-    }, [history, resetTranscript, isProcessing, navigate, transcript, stopListening, speak]);
 
     // Auto-send when silence is detected or listening stops
     useEffect(() => {
@@ -296,76 +371,7 @@ const VoiceAgent = () => {
         }
     }, [transcript, listening, handleSend]);
 
-    const speak = React.useCallback((text, onEnd) => {
-        if (!text) return;
 
-        // If muted, just log and skip audio, but ensure onEnd is called to proceed with tours etc if needed
-        if (isMuted) {
-            console.log('🔇 Agent is muted. Skipping audio:', text);
-            if (onEnd) setTimeout(onEnd, 1000); // Fake delay for pacing
-            return;
-        }
-
-        console.log('🗣️ Speaking:', text);
-
-        setAgentState('speaking');
-
-        // Remove markdown or heavy formatting if needed for TTS
-        const cleanText = text.replace(/[*#_]/g, '');
-
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        // Store reference to prevent GC
-        window.currentUtterance = utterance;
-
-        // Try to find the best natural-sounding English voice
-        let voices = window.speechSynthesis.getVoices();
-
-        // Retry getting voices if empty
-        if (voices.length === 0) {
-            setTimeout(() => {
-                voices = window.speechSynthesis.getVoices();
-                // ... logic could be retried but default voice works
-            }, 100);
-        }
-
-        // Priority list for most natural voices:
-        const bestVoice =
-            voices.find(v => v.name === 'Google UK English Female') ||
-            voices.find(v => v.name === 'Microsoft David Desktop - English (United States)') ||
-            voices.find(v => v.name === 'Microsoft Zira Desktop - English (United States)') ||
-            voices.find(v => v.name === 'Google US English') ||
-            voices.find(v => v.name.includes('Google') && v.lang.includes('en')) ||
-            voices.find(v => v.name.includes('Microsoft') && v.lang.includes('en')) ||
-            voices.find(v => v.lang === 'en-GB') ||
-            voices.find(v => v.lang === 'en-US') ||
-            voices.find(v => v.lang.includes('en'));
-
-        if (bestVoice) {
-            utterance.voice = bestVoice;
-            console.log('Using voice:', bestVoice.name);
-        }
-
-        // Adjust for more natural speech
-        utterance.rate = 0.95;  // Slightly slower for clarity
-        utterance.pitch = 1.0;  // Natural pitch
-        utterance.volume = 1.0; // Full volume
-
-        // Set state back to idle when done speaking
-        utterance.onend = () => {
-            console.log('✅ Speech ended');
-            setAgentState('idle');
-            if (onEnd) onEnd();
-        };
-
-        utterance.onerror = (e) => {
-            console.error('❌ Speech error:', e);
-            setAgentState('idle');
-            if (onEnd) onEnd(); // Proceed anyway
-        };
-
-        window.speechSynthesis.cancel(); // Cancel previous
-        window.speechSynthesis.speak(utterance);
-    }, [isMuted]);
 
     const addMessage = (role, content) => {
         setMessages(prev => [...prev, { role, content }]);
