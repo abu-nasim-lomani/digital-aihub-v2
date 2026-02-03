@@ -15,7 +15,6 @@ import Events from './Events';
 import Standards from './Standards';
 import Team from './Team';
 import Contact from './Contact';
-import Footer from '../components/Footer';
 import { partnerAPI } from '../utils/api';
 import PartnerCard from '../components/PartnerCard';
 
@@ -332,7 +331,7 @@ const SinglePage = () => {
                         onClick={() => scrollToSection('projects')}
                         className="group relative inline-flex items-center justify-center px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold text-undp-blue bg-white rounded-full overflow-hidden transition-all duration-300 hover:bg-undp-light-grey hover:shadow-2xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
                       >
-                        <span className="relative z-10 mr-2">Explore Project</span>
+                        <span className="relative z-10 mr-2">Explore Projects & Supports</span>
                         <ArrowRight size={20} className="relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
                       </button>
                     </div>
@@ -447,9 +446,6 @@ const SinglePage = () => {
         <Contact />
       </div>
 
-
-
-      <Footer />
     </div>
   );
 };
