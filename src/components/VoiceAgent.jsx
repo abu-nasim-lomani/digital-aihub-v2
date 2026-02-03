@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import 'regenerator-runtime/runtime';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { Bot, Mic, MicOff, X, MessageSquare, Loader2 } from 'lucide-react';
+import { Bot, Mic, MicOff, X, MessageSquare, Loader2, Send, Volume2, VolumeX } from 'lucide-react';
 import axios from 'axios';
 
 const tourSteps = [
@@ -31,6 +31,10 @@ const VoiceAgent = () => {
     const [currentStep, setCurrentStep] = useState(0);
     const silenceTimerRef = useRef(null);
     const lastTranscriptRef = useRef('');
+
+    // Hybrid State
+    const [inputText, setInputText] = useState('');
+    const [isMuted, setIsMuted] = useState(false); // If true, Agent won't speak, only text
 
     // We'll use a simplified history for the backend to save tokens/complexity
     // Format: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
@@ -69,7 +73,7 @@ const VoiceAgent = () => {
                 speak(greeting);
             }, 2000); // Delay for page load
         }
-    }, []);
+    }, [speak]);
 
     // Tour Logic
     useEffect(() => {
@@ -132,7 +136,7 @@ const VoiceAgent = () => {
 
             executeStep();
         }
-    }, [tourActive, currentStep, location.pathname, navigate]);
+    }, [tourActive, currentStep, location.pathname, navigate, speak]);
 
     // Initial greeting (Only if NOT touring/welcoming)
     useEffect(() => {
@@ -141,11 +145,11 @@ const VoiceAgent = () => {
             addMessage('assistant', greeting);
             speak(greeting);
         }
-    }, [isOpen, messages.length, tourActive, showWelcome]);
+    }, [isOpen, messages.length, tourActive, showWelcome, speak]);
 
 
 
-    const startListening = () => {
+    const startListening = React.useCallback(() => {
         window.speechSynthesis.cancel(); // Stop talking if listening
         resetTranscript();
         lastTranscriptRef.current = '';
@@ -157,7 +161,7 @@ const VoiceAgent = () => {
         } catch (error) {
             console.error('❌ Failed to start speech recognition:', error);
         }
-    };
+    }, [resetTranscript]);
 
     const stopListening = React.useCallback(() => {
         console.log('⏹️ stopListening called. Current transcript:', transcript);
@@ -179,6 +183,7 @@ const VoiceAgent = () => {
         setAgentState('processing');
         setIsProcessing(true);
         addMessage('user', userMessage);
+        setInputText(''); // Clear input if it was text
 
         // Immediate reset to prevent double-triggering from useEffect
         resetTranscript();
@@ -251,7 +256,7 @@ const VoiceAgent = () => {
             setIsProcessing(false);
             // resetTranscript(); // Moved to top
         }
-    }, [history, resetTranscript, isProcessing, navigate, transcript, stopListening]);
+    }, [history, resetTranscript, isProcessing, navigate, transcript, stopListening, speak]);
 
     // Auto-send when silence is detected or listening stops
     useEffect(() => {
@@ -291,8 +296,16 @@ const VoiceAgent = () => {
         }
     }, [transcript, listening, handleSend]);
 
-    const speak = (text, onEnd) => {
+    const speak = React.useCallback((text, onEnd) => {
         if (!text) return;
+
+        // If muted, just log and skip audio, but ensure onEnd is called to proceed with tours etc if needed
+        if (isMuted) {
+            console.log('🔇 Agent is muted. Skipping audio:', text);
+            if (onEnd) setTimeout(onEnd, 1000); // Fake delay for pacing
+            return;
+        }
+
         console.log('🗣️ Speaking:', text);
 
         setAgentState('speaking');
@@ -352,7 +365,7 @@ const VoiceAgent = () => {
 
         window.speechSynthesis.cancel(); // Cancel previous
         window.speechSynthesis.speak(utterance);
-    };
+    }, [isMuted]);
 
     const addMessage = (role, content) => {
         setMessages(prev => [...prev, { role, content }]);
@@ -413,12 +426,21 @@ const VoiceAgent = () => {
                             <Bot className="w-6 h-6" />
                             <span className="font-semibold">AI Assistant</span>
                         </div>
-                        <button
-                            onClick={() => setIsOpen(false)}
-                            className="hover:bg-white/20 p-1 rounded-full transition-colors"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsMuted(!isMuted)}
+                                className="hover:bg-white/20 p-1 rounded-full transition-colors"
+                                title={isMuted ? "Unmute Voice" : "Mute Voice"}
+                            >
+                                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                            </button>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="hover:bg-white/20 p-1 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Messages */}
@@ -459,33 +481,58 @@ const VoiceAgent = () => {
                     </div>
 
                     {/* Controls */}
-                    <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex flex-col items-center gap-2">
-                        <button
-                            onClick={listening ? stopListening : startListening}
-                            disabled={isProcessing}
-                            className={`p-4 rounded-full shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${listening
-                                ? 'bg-red-500 hover:bg-red-600 ring-4 ring-red-100 dark:ring-red-900/30 animate-pulse'
-                                : agentState === 'processing'
-                                    ? 'bg-yellow-500 ring-4 ring-yellow-100 dark:ring-yellow-900/30'
-                                    : agentState === 'speaking'
-                                        ? 'bg-green-500 ring-4 ring-green-100 dark:ring-green-900/30 animate-pulse'
-                                        : 'bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-100 dark:ring-blue-900/30'
-                                }`}
-                        >
-                            {listening ? (
-                                <MicOff className="w-6 h-6 text-white" />
-                            ) : agentState === 'processing' ? (
-                                <Loader2 className="w-6 h-6 text-white animate-spin" />
-                            ) : (
-                                <Mic className="w-6 h-6 text-white" />
-                            )}
-                        </button>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                            {agentState === 'listening' && 'Listening...'}
-                            {agentState === 'processing' && 'Processing...'}
-                            {agentState === 'speaking' && 'Speaking...'}
-                            {agentState === 'idle' && 'Click to speak'}
-                        </span>
+                    <div className="p-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-2">
+                        {/* Status Indicator (Compact) */}
+                        {(agentState !== 'idle' || listening) && (
+                            <div className="flex justify-center">
+                                <span className="text-xs font-bold text-blue-600 animate-pulse">
+                                    {listening ? 'Listening...' : agentState === 'processing' ? 'Thinking...' : 'Speaking...'}
+                                </span>
+                            </div>
+                        )}
+
+                        <div className="flex items-end gap-2">
+                            {/* Mic Button */}
+                            <button
+                                onClick={listening ? stopListening : startListening}
+                                disabled={isProcessing}
+                                className={`p-3 rounded-xl transition-all duration-200 flex-shrink-0 ${listening
+                                    ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse shadow-red-200'
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                                    }`}
+                                title={listening ? "Stop Listening" : "Start Voice Input"}
+                            >
+                                {listening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                            </button>
+
+                            {/* Text Input */}
+                            <div className="flex-1 relative">
+                                <textarea
+                                    value={inputText}
+                                    onChange={(e) => setInputText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSend(inputText);
+                                        }
+                                    }}
+                                    placeholder={listening ? "Listening..." : "Type a message..."}
+                                    className="w-full bg-gray-100 dark:bg-gray-800 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 resize-none max-h-24 min-h-[46px]"
+                                    rows={1}
+                                    disabled={listening}
+                                />
+                            </div>
+
+                            {/* Send Button */}
+                            <button
+                                onClick={() => handleSend(inputText)}
+                                disabled={!inputText.trim() || isProcessing || listening}
+                                className="p-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-colors shadow-lg flex-shrink-0"
+                            >
+                                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                            </button>
+                        </div>
+
                     </div>
                 </div>
             )}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { projectsAPI, supportRequestsAPI } from '../utils/api';
+import { projectsAPI, supportRequestsAPI, settingsAPI } from '../utils/api';
 import {
   Plus, CheckCircle, ChevronRight, FileText,
   Briefcase, TrendingUp, Users, Clock
@@ -55,18 +55,48 @@ const Projects = () => {
 
   const fetchProjects = async () => {
     try {
-      const response = await projectsAPI.getAll();
-      const supportResponse = await supportRequestsAPI.getAll();
+      const projectsPromise = projectsAPI.getAll();
+      const supportPromise = supportRequestsAPI.getAll();
+      const orderPromise = settingsAPI.get('project_order').catch(() => ({ data: { value: [] } }));
+
+      const [projectsResponse, supportResponse, orderResponse] = await Promise.all([
+        projectsPromise,
+        supportPromise,
+        orderPromise
+      ]);
 
       const supportData = supportResponse.data || [];
+      const projectOrder = orderResponse.data?.value || [];
 
-      const processed = response.data.map(p => {
+      let fetchedProjects = projectsResponse.data || [];
+
+      // Sort projects based on order
+      if (projectOrder.length > 0) {
+        fetchedProjects.sort((a, b) => {
+          const indexA = projectOrder.indexOf(a.id);
+          const indexB = projectOrder.indexOf(b.id);
+
+          // If both are in the order list, sort by index
+          if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+
+          // If one is in the list and other isn't, existing one comes first
+          if (indexA !== -1) return -1;
+          if (indexB !== -1) return 1;
+
+          // If neither, sort by creation date (newest first)
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+      } else {
+        // Default sort: Newest first
+        fetchedProjects.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+
+      const processed = fetchedProjects.map(p => {
         const pRequests = supportData.filter(r => r.projectId === p.id);
         const ongoing = pRequests.filter(r => r.status !== 'resolved').length;
         const completed = pRequests.filter(r => r.status === 'resolved').length;
 
         return {
-          ...p,
           ...p,
           imageUrl: getProjectImage(p),
           ongoingSupport: ongoing,

@@ -13,6 +13,8 @@ import {
   Upload
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { settingsAPI } from '../../utils/api';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 const ManageProjects = () => {
   const [projects, setProjects] = useState([]);
@@ -23,6 +25,11 @@ const ManageProjects = () => {
   const [submitting, setSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
+
+  // Reorder State
+  const [showReorderModal, setShowReorderModal] = useState(false);
+  const [projectOrder, setProjectOrder] = useState([]);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -45,6 +52,55 @@ const ManageProjects = () => {
       alert('Failed to fetch projects');
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showReorderModal) {
+      fetchProjectOrder();
+    }
+  }, [showReorderModal]);
+
+  const fetchProjectOrder = async () => {
+    try {
+      const res = await settingsAPI.get('project_order');
+      if (res.data && Array.isArray(res.data.value)) {
+        setProjectOrder(res.data.value);
+      } else {
+        // Default order: by ID or creation (derived from current projects list)
+        setProjectOrder(projects.map(p => p.id));
+      }
+    } catch (error) {
+      console.error('Error fetching project order:', error);
+      // Fallback
+      setProjectOrder(projects.map(p => p.id));
+    }
+  };
+
+  const handleMoveProject = (index, direction) => {
+    if (
+      (direction === 'up' && index === 0) ||
+      (direction === 'down' && index === projectOrder.length - 1)
+    ) return;
+
+    const newOrder = [...projectOrder];
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    [newOrder[index], newOrder[swapIndex]] = [newOrder[swapIndex], newOrder[index]];
+    setProjectOrder(newOrder);
+  };
+
+  const saveProjectOrder = async () => {
+    try {
+      setSavingOrder(true);
+      await settingsAPI.update('project_order', projectOrder);
+      alert('Project order saved successfully!');
+      setShowReorderModal(false);
+      // Ideally refresh main list if it respects order, but for now we just save
+    } catch (error) {
+      console.error('Failed to save order:', error);
+      alert('Failed to save order');
+    } finally {
+      setSavingOrder(false);
     }
   };
 
@@ -165,6 +221,13 @@ const ManageProjects = () => {
             >
               <Plus size={20} />
               Add Project
+            </button>
+            <button
+              onClick={() => setShowReorderModal(true)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2 ml-3"
+            >
+              <ArrowUp size={18} className="transform rotate-45" /> {/* Generic sort icon proxy */}
+              Reorder
             </button>
           </div>
         </div>
@@ -400,6 +463,79 @@ const ManageProjects = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reorder Modal */}
+      {showReorderModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="fixed inset-0 bg-black opacity-50" onClick={() => setShowReorderModal(false)}></div>
+            <div className="relative bg-white rounded-lg max-w-lg w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Reorder Projects</h2>
+                <button onClick={() => setShowReorderModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="bg-blue-50 p-3 rounded-lg mb-4 text-sm text-blue-700">
+                Use arrows to change the display order on the public website.
+              </div>
+
+              <div className="max-h-[60vh] overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-100">
+                {projectOrder.map((id, index) => {
+                  const project = projects.find(p => p.id === id);
+                  if (!project) return null; // Skip if project deleted but in order list
+                  return (
+                    <div key={id} className="p-3 flex items-center justify-between hover:bg-gray-50">
+                      <div className="font-medium text-gray-800 line-clamp-1">{project.title}</div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          disabled={index === 0}
+                          onClick={() => handleMoveProject(index, 'up')}
+                          className={`p-1 rounded ${index === 0 ? 'text-gray-200' : 'text-gray-500 hover:bg-gray-200'}`}
+                        >
+                          <ArrowUp size={18} />
+                        </button>
+                        <button
+                          disabled={index === projectOrder.length - 1}
+                          onClick={() => handleMoveProject(index, 'down')}
+                          className={`p-1 rounded ${index === projectOrder.length - 1 ? 'text-gray-200' : 'text-gray-500 hover:bg-gray-200'}`}
+                        >
+                          <ArrowDown size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Append any new projects not yet in order list */}
+                {projects.filter(p => !projectOrder.includes(p.id)).map(project => (
+                  <div key={project.id} className="p-3 flex items-center justify-between border-t border-yellow-100 bg-yellow-50">
+                    <div className="font-medium text-gray-800 line-clamp-1">{project.title} <span className="text-xs text-yellow-600">(New)</span></div>
+                    <div className="text-xs text-gray-400 italic">Save to add to order</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowReorderModal(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveProjectOrder}
+                  disabled={savingOrder}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  {savingOrder && <LoadingSpinner size="sm" color="white" />}
+                  Save Order
+                </button>
+              </div>
             </div>
           </div>
         </div>
