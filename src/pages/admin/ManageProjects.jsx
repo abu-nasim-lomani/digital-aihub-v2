@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { projectsAPI, uploadFile } from '../../utils/api';
+import { projectsAPI, uploadFile, settingsAPI } from '../../utils/api';
 import {
   Plus,
   Edit2,
@@ -13,7 +13,7 @@ import {
   Upload
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { settingsAPI } from '../../utils/api';
+
 import { ArrowUp, ArrowDown } from 'lucide-react';
 
 const ManageProjects = () => {

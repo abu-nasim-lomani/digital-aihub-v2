@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import 'regenerator-runtime/runtime';
+
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { Bot, Mic, MicOff, X, MessageSquare, Loader2, Send, Volume2, VolumeX } from 'lucide-react';
 import axios from 'axios';
