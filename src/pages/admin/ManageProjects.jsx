@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { projectsAPI, uploadFile, settingsAPI } from '../../utils/api';
 import {
   Plus,
@@ -59,9 +59,9 @@ const ManageProjects = () => {
     if (showReorderModal) {
       fetchProjectOrder();
     }
-  }, [showReorderModal]);
+  }, [showReorderModal, fetchProjectOrder]);
 
-  const fetchProjectOrder = async () => {
+  const fetchProjectOrder = useCallback(async () => {
     try {
       const res = await settingsAPI.get('project_order');
       if (res.data && Array.isArray(res.data.value)) {
@@ -75,7 +75,7 @@ const ManageProjects = () => {
       // Fallback
       setProjectOrder(projects.map(p => p.id));
     }
-  };
+  }, [projects]);
 
   const handleMoveProject = (index, direction) => {
     if (
