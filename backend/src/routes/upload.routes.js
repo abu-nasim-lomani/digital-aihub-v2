@@ -1,7 +1,9 @@
 
+
 import express from 'express';
-import { upload, uploadToSupabase } from '../utils/uploadHelper.js';
+import { upload, uploadToLocal } from '../utils/uploadHelper.js';
 import { authenticate } from '../middleware/auth.js';
+import { listUploadedFiles, deleteUploadedFile } from '../controllers/upload.controller.js';
 
 const router = express.Router();
 
@@ -12,17 +14,50 @@ router.post('/', authenticate, upload.single('file'), async (req, res, next) => 
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const folder = req.body.folder || 'uploads';
-        const publicUrl = await uploadToSupabase(req.file, 'uploads', folder);
+        const folder = req.body.folder || 'general';
+        const publicUrl = await uploadToLocal(req.file, 'uploads', folder);
 
-        res.json({ url: publicUrl }); // Frontend expects { url: ... } or string? 
-        // api.js says: return response.data;
-        // Usually response.data contains the URL or object. 
-        // The user didn't specify format, but standard is JSON.
-        // If api.js returns response.data, and component expects string, maybe it needs { url } or just the string?
-        // Let's look at api.js usage. It just returns response.data.
-        // I will return { url: publicUrl } and { publicUrl } to be safe.
+        // Return URL in format expected by frontend
+        res.json({ url: publicUrl });
     } catch (error) {
+        console.error('Upload route error:', error);
+        next(error);
+    }
+});
+
+// GET /api/upload/list - List all uploaded files in a folder
+router.get('/list', authenticate, async (req, res, next) => {
+    try {
+        const folder = req.query.folder || 'general';
+        const files = await listUploadedFiles(folder);
+
+        res.json({ files });
+    } catch (error) {
+        console.error('List files error:', error);
+        next(error);
+    }
+});
+
+// DELETE /api/upload/:folder/:filename - Delete a specific file
+router.delete('/:folder/:filename', authenticate, async (req, res, next) => {
+    try {
+        const { folder, filename } = req.params;
+
+        // Note: Frontend already checks if image is in use before calling delete
+        // So we can safely delete the file here
+
+        // Delete the file
+        await deleteUploadedFile(folder, filename);
+
+        res.json({
+            success: true,
+            message: 'File deleted successfully'
+        });
+    } catch (error) {
+        console.error('Delete file error:', error);
+        if (error.message === 'File not found') {
+            return res.status(404).json({ error: 'File not found' });
+        }
         next(error);
     }
 });

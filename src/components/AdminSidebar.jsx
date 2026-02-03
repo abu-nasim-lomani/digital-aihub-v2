@@ -10,7 +10,9 @@ import {
     HelpCircle,
     LogOut,
     Settings,
-    ExternalLink
+    Layout,
+    ExternalLink,
+    Handshake
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -27,8 +29,12 @@ const AdminSidebar = () => {
         { icon: BookOpen, label: 'Learning Modules', path: '/admin/learning' },
         { icon: Calendar, label: 'Events & News', path: '/admin/events' },
         { icon: Award, label: 'Standards', path: '/admin/standards' },
+        { icon: Handshake, label: 'Partners', path: '/admin/partners' },
         { icon: Users, label: 'Team Members', path: '/admin/team' },
+        { icon: Users, label: 'Users', path: '/admin/users' },
         { icon: HelpCircle, label: 'Support Requests', path: '/admin/support-requests' },
+        { icon: Layout, label: 'Home Content', path: '/admin/home-content' },
+        { icon: Settings, label: 'Visibility', path: '/admin/settings' },
     ];
 
     const handleLogout = async () => {

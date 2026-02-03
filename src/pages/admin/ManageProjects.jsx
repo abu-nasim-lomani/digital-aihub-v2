@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { projectsAPI } from '../../utils/api';
+import { projectsAPI, uploadFile } from '../../utils/api';
 import {
   Plus,
   Edit2,
@@ -9,7 +9,8 @@ import {
   Save,
   Briefcase,
   CheckCircle,
-  Clock
+  Clock,
+  Upload
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -20,6 +21,8 @@ const ManageProjects = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -50,11 +53,24 @@ const ManageProjects = () => {
     setSubmitting(true);
 
     try {
+      let payload = { ...formData };
+
+      if (imageFile) {
+        try {
+          const uploadRes = await uploadFile(imageFile, 'projects');
+          payload.imageUrl = uploadRes.url;
+        } catch (uploadError) {
+          console.error('Image upload failed:', uploadError);
+          alert('Failed to upload image. Please try again.');
+          return;
+        }
+      }
+
       if (editingProject) {
-        await projectsAPI.update(editingProject.id, formData);
+        await projectsAPI.update(editingProject.id, payload);
         alert('Project updated successfully!');
       } else {
-        await projectsAPI.create(formData);
+        await projectsAPI.create(payload);
         alert('Project created successfully!');
       }
 
@@ -76,6 +92,8 @@ const ManageProjects = () => {
       imageUrl: project.imageUrl || '',
       status: project.status || 'pending'
     });
+    setPreviewUrl(project.imageUrl || '');
+    setImageFile(null);
     setShowModal(true);
   };
 
@@ -100,7 +118,17 @@ const ManageProjects = () => {
       status: 'pending'
     });
     setEditingProject(null);
+    setPreviewUrl('');
+    setImageFile(null);
     setShowModal(false);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
   };
 
   const filteredProjects = projects.filter(project =>
@@ -200,8 +228,8 @@ const ManageProjects = () => {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${project.status === 'published'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
                           }`}>
                           {project.status === 'published' ? (
                             <><CheckCircle size={12} className="mr-1" /> Published</>
@@ -288,16 +316,50 @@ const ManageProjects = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Image URL
+                    Project Image
                   </label>
-                  <input
-                    type="url"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Optional: URL to project image</p>
+
+                  <div className="flex gap-4 items-start">
+                    {/* Preview */}
+                    <div className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 relative group">
+                      {previewUrl ? (
+                        <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center text-gray-400">
+                          <Upload size={20} />
+                          <span className="text-[10px] mt-1">Upload</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-4
+                                file:rounded-lg file:border-0
+                                file:text-sm file:font-semibold
+                                file:bg-blue-50 file:text-blue-700
+                                hover:file:bg-blue-100"
+                      />
+
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-sm">Or</span>
+                        <input
+                          type="url"
+                          value={formData.imageUrl}
+                          onChange={(e) => {
+                            setFormData({ ...formData, imageUrl: e.target.value });
+                            if (!imageFile) setPreviewUrl(e.target.value);
+                          }}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Paste image URL here..."
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>

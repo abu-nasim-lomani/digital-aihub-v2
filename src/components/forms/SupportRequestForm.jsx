@@ -160,9 +160,11 @@ const SupportRequestForm = ({ isOpen, onClose, projects = [], currentUser, onSuc
                                         className="w-full px-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[#003359]/20 focus:border-[#003359] transition-all text-sm font-medium outline-none appearance-none cursor-pointer"
                                     >
                                         <option value="">Select Project (Optional)</option>
-                                        {projects.map(p => (
-                                            <option key={p.id} value={p.id}>{p.title}</option>
-                                        ))}
+                                        {projects
+                                            .filter(p => !currentUser || currentUser.isAdmin || currentUser.assignedProjectIds?.includes(p.id))
+                                            .map(p => (
+                                                <option key={p.id} value={p.id}>{p.title}</option>
+                                            ))}
                                     </select>
                                     <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={16} />
                                 </div>

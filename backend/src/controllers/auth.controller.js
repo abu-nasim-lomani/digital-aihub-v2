@@ -43,22 +43,20 @@ export const signup = async (req, res, next) => {
                 passwordHash,
                 fullName: fullName || null,
                 isAdmin: false,
-                isActive: true,
+                isActive: false,  // Pending admin approval
                 emailVerified: false
             }
         });
 
-        // Generate token
-        const token = generateToken(user.id, user.email, user.isAdmin);
-
         res.status(201).json({
-            message: 'User created successfully',
-            token,
+            message: 'Account created successfully. Please wait for admin approval before logging in.',
+            requiresApproval: true,
             user: {
                 id: user.id,
                 email: user.email,
                 fullName: user.fullName,
-                isAdmin: user.isAdmin
+                isAdmin: user.isAdmin,
+                isActive: user.isActive
             }
         });
     } catch (error) {
@@ -78,7 +76,12 @@ export const login = async (req, res, next) => {
 
         // Find user
         const user = await prisma.user.findUnique({
-            where: { email }
+            where: { email },
+            include: {
+                projectAssignments: {
+                    select: { projectId: true }
+                }
+            }
         });
 
         if (!user) {
@@ -87,7 +90,9 @@ export const login = async (req, res, next) => {
 
         // Check if user is active
         if (!user.isActive) {
-            return res.status(403).json({ error: 'Account is deactivated' });
+            return res.status(403).json({
+                error: 'Your account is pending admin approval. Please wait for approval before logging in.'
+            });
         }
 
         // Verify password
@@ -113,7 +118,8 @@ export const login = async (req, res, next) => {
                 id: user.id,
                 email: user.email,
                 fullName: user.fullName,
-                isAdmin: user.isAdmin
+                isAdmin: user.isAdmin,
+                assignedProjectIds: (user.projectAssignments || []).map(a => a.projectId)
             }
         });
     } catch (error) {
@@ -132,7 +138,10 @@ export const me = async (req, res, next) => {
                 fullName: true,
                 isAdmin: true,
                 emailVerified: true,
-                createdAt: true
+                createdAt: true,
+                projectAssignments: {
+                    select: { projectId: true }
+                }
             }
         });
 
@@ -140,7 +149,13 @@ export const me = async (req, res, next) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json(user);
+        const formattedUser = {
+            ...user,
+            assignedProjectIds: user.projectAssignments.map(a => a.projectId),
+            projectAssignments: undefined // Remove the raw relation array
+        };
+
+        res.json(formattedUser);
     } catch (error) {
         next(error);
     }

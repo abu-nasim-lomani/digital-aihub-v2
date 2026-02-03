@@ -66,6 +66,14 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (email, password, fullName) => {
     const response = await authAPI.signup({ email, password, fullName });
+
+    // Check if account requires approval
+    if (response.data.requiresApproval) {
+      // Don't auto-login, just return the response
+      return response.data;
+    }
+
+    // Only auto-login if approval is not required
     const { token, user } = response.data;
 
     // Store token and user

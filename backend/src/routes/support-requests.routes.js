@@ -107,6 +107,32 @@ router.post('/', optionalAuth, async (req, res, next) => {
 
         if (req.user) {
             data.creator = { connect: { id: req.user.userId } };
+
+            // Validate project assignment for authenticated users
+            if (req.body.projectId) {
+                // Get user to check if admin
+                const user = await prisma.user.findUnique({
+                    where: { id: req.user.userId }
+                });
+
+                // If not admin, check if user is assigned to this project
+                if (!user.isAdmin) {
+                    const assignment = await prisma.userProjectAssignment.findUnique({
+                        where: {
+                            userId_projectId: {
+                                userId: req.user.userId,
+                                projectId: req.body.projectId
+                            }
+                        }
+                    });
+
+                    if (!assignment) {
+                        return res.status(403).json({
+                            error: 'You are not assigned to this project. Please contact admin for access.'
+                        });
+                    }
+                }
+            }
         } else {
             // Guest submission
             if (!req.body.guestName || !req.body.guestEmail) {

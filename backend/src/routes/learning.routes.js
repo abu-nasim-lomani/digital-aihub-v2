@@ -84,4 +84,18 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
     }
 });
 
+// POST /api/learning/:id/download - Increment download count
+router.post('/:id/download', async (req, res, next) => {
+    try {
+        const module = await prisma.learningModule.update({
+            where: { id: req.params.id },
+            data: { downloads: { increment: 1 } }
+        });
+
+        res.json(module);
+    } catch (error) {
+        next(error);
+    }
+});
+
 export default router;

@@ -21,6 +21,45 @@ router.get('/', optionalAuth, async (req, res, next) => {
     }
 });
 
+// GET /api/projects/my - Get projects for current user (assigned projects for users, all for admins)
+router.get('/my', authenticate, async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+
+        // Get user to check if admin
+        const user = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        let projects;
+
+        if (user.isAdmin) {
+            // Admin sees all published projects
+            projects = await prisma.project.findMany({
+                where: { status: 'published' },
+                orderBy: { createdAt: 'desc' }
+            });
+        } else {
+            // Regular user sees only assigned projects
+            const assignments = await prisma.userProjectAssignment.findMany({
+                where: { userId },
+                include: {
+                    project: true
+                }
+            });
+
+            // Filter only published projects
+            projects = assignments
+                .map(a => a.project)
+                .filter(p => p.status === 'published');
+        }
+
+        res.json(projects);
+    } catch (error) {
+        next(error);
+    }
+});
+
 // GET /api/projects/:id
 router.get('/:id', async (req, res, next) => {
     try {

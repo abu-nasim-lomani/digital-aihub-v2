@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, ChevronDown, User } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { settingsAPI } from '../utils/api';
 import AuthModal from './AuthModal';
 
 const Navbar = () => {
@@ -15,15 +16,78 @@ const Navbar = () => {
   const { currentUser, logout } = useAuth();
   const userMenuRef = useRef(null);
 
-  const navItems = [
-    { path: '/', label: 'Home', sectionId: 'home' },
-    { path: '/initiatives', label: 'Initiatives', sectionId: 'initiatives' },
-    { path: '/learning', label: 'Learning', sectionId: 'learning' },
-    { path: '/projects', label: 'Projects & Supports', sectionId: 'projects' },
-    { path: '/events', label: 'Events', sectionId: 'events' },
-    { path: '/standards', label: 'Standards', sectionId: 'standards' },
-    { path: '/team', label: 'Team & Advisory', sectionId: 'team' },
-  ];
+  const [showInitiatives, setShowInitiatives] = useState(false);
+  const [showEvents, setShowEvents] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
+  const [showLearning, setShowLearning] = useState(false);
+  const [showStandards, setShowStandards] = useState(false);
+  const [showPartners, setShowPartners] = useState(false);
+  const [showTeam, setShowTeam] = useState(false);
+
+  const [sectionOrder, setSectionOrder] = useState([
+    'initiative_visibility',
+    'learning_visibility',
+    'project_visibility',
+    'event_visibility',
+    'standard_visibility',
+    'team_visibility'
+  ]);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const keys = [
+          'initiative_visibility',
+          'event_visibility',
+          'project_visibility',
+          'learning_visibility',
+          'standard_visibility',
+          'partner_visibility',
+          'team_visibility'
+        ];
+
+        // Fetch visibility and order
+        const promises = [
+          ...keys.map(key => settingsAPI.get(key).catch(() => ({ data: { value: true } }))),
+          settingsAPI.get('section_order').catch(() => ({ data: { value: null } }))
+        ];
+
+        const results = await Promise.all(promises);
+
+        const [initRes, eventRes, projRes, learnRes, stdRes, partnerRes, teamRes, orderRes] = results;
+
+        if (initRes.data) setShowInitiatives(initRes.data.value ?? true);
+        if (eventRes.data) setShowEvents(eventRes.data.value ?? true);
+        if (projRes.data) setShowProjects(projRes.data.value ?? true);
+        if (learnRes.data) setShowLearning(learnRes.data.value ?? true);
+        if (stdRes.data) setShowStandards(stdRes.data.value ?? true);
+
+        // Partner visibility: default to true if missing or null, to ensure it shows up initially
+        const partnerVal = partnerRes?.data?.value;
+        setShowPartners(partnerVal === undefined || partnerVal === null ? true : partnerVal);
+
+        if (teamRes.data) setShowTeam(teamRes.data.value ?? true);
+
+        if (orderRes.data && Array.isArray(orderRes.data.value) && orderRes.data.value.length > 0) {
+          const order = orderRes.data.value;
+          // Ensure partner_visibility is included if not present (backend might be stale)
+          if (!order.includes('partner_visibility')) {
+            const stdIndex = order.indexOf('standard_visibility');
+            if (stdIndex !== -1) {
+              order.splice(stdIndex + 1, 0, 'partner_visibility');
+            } else {
+              order.push('partner_visibility');
+            }
+          }
+          setSectionOrder(order);
+        }
+
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []); // Run once on mount
 
   // Scroll Detection for Floating Effect
   useEffect(() => {
@@ -106,6 +170,34 @@ const Navbar = () => {
   // Only show floating pill style if on Home AND at the top
   const isFloating = isHome && !isScrolled;
 
+  const getDynamicNavItems = () => {
+    return sectionOrder.map(key => {
+      switch (key) {
+        case 'initiative_visibility':
+          return showInitiatives ? { path: '/initiatives', label: 'Initiatives', sectionId: 'initiatives' } : null;
+        case 'learning_visibility':
+          return showLearning ? { path: '/learning', label: 'Learning', sectionId: 'learning' } : null;
+        case 'project_visibility':
+          return showProjects ? { path: '/projects', label: 'Projects & Supports', sectionId: 'projects' } : null;
+        case 'event_visibility':
+          return showEvents ? { path: '/events', label: 'Events', sectionId: 'events' } : null;
+        case 'standard_visibility':
+          return showStandards ? { path: '/standards', label: 'Standards', sectionId: 'standards' } : null;
+        case 'partner_visibility':
+          return showPartners ? { path: '#partners', label: 'Partners Collaboration', sectionId: 'partners' } : null;
+        case 'team_visibility':
+          return showTeam ? { path: '/team', label: 'Team', sectionId: 'team' } : null;
+        default:
+          return null;
+      }
+    }).filter(item => item !== null);
+  };
+
+  const navItems = [
+    { path: '/', label: 'Home', sectionId: 'home' },
+    ...getDynamicNavItems()
+  ];
+
   return (
     <>
       <nav
@@ -143,7 +235,7 @@ const Navbar = () => {
             <div className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => (
                 <a
-                  key={item.path}
+                  key={item.label}
                   href={item.path}
                   onClick={(e) => handleNavClick(e, item)}
                   className={`relative px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${isActive(item.path)
@@ -244,7 +336,7 @@ const Navbar = () => {
             <div className="flex-1 overflow-y-auto p-5 space-y-2">
               {navItems.map((item, idx) => (
                 <a
-                  key={item.path}
+                  key={item.label}
                   href={item.path}
                   onClick={(e) => handleNavClick(e, item)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive(item.path)

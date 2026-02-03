@@ -84,7 +84,8 @@ export const learningAPI = {
     getById: (id) => api.get(`/learning/${id}`),
     create: (data) => api.post('/learning', data),
     update: (id, data) => api.put(`/learning/${id}`, data),
-    delete: (id) => api.delete(`/learning/${id}`)
+    delete: (id) => api.delete(`/learning/${id}`),
+    incrementDownload: (id) => api.post(`/learning/${id}/download`)
 };
 
 export const standardsAPI = {
@@ -113,6 +114,12 @@ export const supportRequestsAPI = {
     delete: (id) => api.delete(`/support-requests/${id}`)
 };
 
+export const settingsAPI = {
+    get: (key) => api.get(`/settings/${key}`),
+    update: (key, value) => api.put(`/settings/${key}`, { value })
+};
+
+
 // File upload helper
 export const uploadFile = async (file, folder = 'uploads') => {
     const formData = new FormData();
@@ -127,3 +134,44 @@ export const uploadFile = async (file, folder = 'uploads') => {
 
     return response.data;
 };
+
+// Upload management API
+export const uploadAPI = {
+    list: (folder = 'general') => api.get(`/upload/list?folder=${folder}`),
+    delete: (folder, filename) => api.delete(`/upload/${folder}/${filename}`)
+};
+
+// User management API
+export const userAPI = {
+    list: () => api.get('/users'),
+    create: (userData) => api.post('/users', userData),
+    approve: (userId) => api.patch(`/users/${userId}/approve`),
+    delete: (userId) => api.delete(`/users/${userId}`),
+    updateProfile: (data) => api.patch('/users/profile', data),
+    updateUser: (userId, data) => api.patch(`/users/${userId}`, data)
+};
+
+// Project assignment API
+export const projectAssignmentAPI = {
+    assign: (userId, projectId) => api.post('/project-assignments', { userId, projectId }),
+    unassign: (userId, projectId) => api.delete('/project-assignments', { data: { userId, projectId } }),
+    getUserProjects: (userId) => api.get(`/project-assignments/user/${userId}`),
+    getProjectUsers: (projectId) => api.get(`/project-assignments/project/${projectId}`)
+};
+
+// Project API
+export const projectAPI = {
+    getMyProjects: () => api.get('/projects/my')
+};
+
+// Partner API
+export const partnerAPI = {
+    getAll: (category) => api.get('/partners', { params: { category } }),
+    getFeatured: () => api.get('/partners/featured'),
+    getById: (id) => api.get(`/partners/${id}`),
+    create: (data) => api.post('/partners', data),
+    update: (id, data) => api.put(`/partners/${id}`, data),
+    delete: (id) => api.delete(`/partners/${id}`),
+    toggleFeatured: (id) => api.patch(`/partners/${id}/featured`)
+};
+

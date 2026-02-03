@@ -11,15 +11,28 @@ import Modal from '../components/Modal';
 import SupportRequestForm from '../components/forms/SupportRequestForm';
 
 // Helper for deterministic project images
-const getProjectImage = (title) => {
-  if (!title) return 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800';
-  const t = title.toLowerCase();
-  if (t.includes('infra') || t.includes('network')) return 'https://images.unsplash.com/photo-1558494949-ef2a278812bc?auto=format&fit=crop&q=80&w=800';
-  if (t.includes('ai') || t.includes('data')) return 'https://images.unsplash.com/photo-1518932945647-7a1c969f8be2?auto=format&fit=crop&q=80&w=800';
-  if (t.includes('gov') || t.includes('policy')) return 'https://images.unsplash.com/photo-1541872703-74c59669c478?auto=format&fit=crop&q=80&w=800';
-  if (t.includes('health')) return 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800';
-  if (t.includes('edu') || t.includes('school')) return 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800';
-  return 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800';
+const getProjectImage = (p) => {
+  if (!p.imageUrl) {
+    // Default fallbacks based on title
+    if (!p.title) return 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800';
+    const t = p.title.toLowerCase();
+    if (t.includes('infra') || t.includes('network')) return 'https://images.unsplash.com/photo-1558494949-ef2a278812bc?auto=format&fit=crop&q=80&w=800';
+    if (t.includes('ai') || t.includes('data')) return 'https://images.unsplash.com/photo-1518932945647-7a1c969f8be2?auto=format&fit=crop&q=80&w=800';
+    if (t.includes('gov') || t.includes('policy')) return 'https://images.unsplash.com/photo-1541872703-74c59669c478?auto=format&fit=crop&q=80&w=800';
+    if (t.includes('health')) return 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800';
+    if (t.includes('edu') || t.includes('school')) return 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800';
+    return 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800';
+  }
+
+  // If path starts with /uploads, prepend API URL
+  if (p.imageUrl.startsWith('/uploads')) {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+    // Remove /api from base URL if present, as uploads are usually at root
+    const baseUrl = apiBase.replace('/api', '');
+    return `${baseUrl}${p.imageUrl}`;
+  }
+
+  return p.imageUrl;
 };
 
 const Projects = () => {
@@ -54,7 +67,8 @@ const Projects = () => {
 
         return {
           ...p,
-          imageUrl: p.imageUrl || getProjectImage(p.title),
+          ...p,
+          imageUrl: getProjectImage(p),
           ongoingSupport: ongoing,
           completedSupport: completed
         };
@@ -118,13 +132,15 @@ const Projects = () => {
               </p>
             </div>
 
-            <button
-              onClick={() => handleRequestSupport(null)}
-              className="bg-white text-[#003359] hover:bg-blue-50 font-bold py-3.5 px-8 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all duration-300 transform hover:scale-105 flex items-center gap-3 animate-in slide-in-from-right-8"
-            >
-              <Plus size={22} className="stroke-[3px]" />
-              <span className="text-base tracking-wide uppercase">Request Support</span>
-            </button>
+            {currentUser && (currentUser.isAdmin || (currentUser.assignedProjectIds && currentUser.assignedProjectIds.length > 0)) && (
+              <button
+                onClick={() => handleRequestSupport(null)}
+                className="bg-white text-[#003359] hover:bg-blue-50 font-bold py-3.5 px-8 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all duration-300 transform hover:scale-105 flex items-center gap-3 animate-in slide-in-from-right-8"
+              >
+                <Plus size={22} className="stroke-[3px]" />
+                <span className="text-base tracking-wide uppercase">Request Support</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -215,12 +231,14 @@ const Projects = () => {
                         </a>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleRequestSupport(project)}
-                      className="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 text-xs font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-1.5"
-                    >
-                      <Plus size={14} /> Request Support
-                    </button>
+                    {currentUser && (currentUser.isAdmin || currentUser.assignedProjectIds?.includes(project.id)) && (
+                      <button
+                        onClick={() => handleRequestSupport(project)}
+                        className="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 text-xs font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-1.5"
+                      >
+                        <Plus size={14} /> Request Support
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

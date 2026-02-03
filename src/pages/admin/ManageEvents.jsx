@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { eventsAPI } from '../../utils/api';
-import { Plus, Calendar, MapPin, Edit, Trash2, X, Check, Eye, Users } from 'lucide-react';
+import { eventsAPI, settingsAPI } from '../../utils/api';
+import { Plus, Calendar, MapPin, Edit, Trash2, X, Check, Eye, EyeOff, Users } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const ManageEvents = () => {
@@ -8,6 +8,7 @@ const ManageEvents = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isSectionVisible, setIsSectionVisible] = useState(true);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -25,7 +26,29 @@ const ManageEvents = () => {
 
   useEffect(() => {
     fetchData();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await settingsAPI.get('event_visibility');
+      setIsSectionVisible(res.data.value);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  const toggleVisibility = async () => {
+    try {
+      const newValue = !isSectionVisible;
+      setIsSectionVisible(newValue); // Optimistic update
+      await settingsAPI.update('event_visibility', newValue);
+    } catch (error) {
+      console.error('Error updating setting:', error);
+      setIsSectionVisible(!isSectionVisible); // Revert on error
+      alert('Failed to update visibility setting');
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -113,12 +136,33 @@ const ManageEvents = () => {
             </h1>
             <p className="text-gray-500 mt-2 ml-14">Organize workshops, seminars and key milestones.</p>
           </div>
-          <button
-            onClick={() => { resetForm(); setShowModal(true); }}
-            className="btn-primary flex items-center gap-2 px-6 py-3 shadow-lg hover:shadow-xl transition-all"
-          >
-            <Plus size={20} /> Create Event
-          </button>
+
+          <div className="flex gap-3">
+            {/* Visibility Toggle */}
+            <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg mr-2 border border-gray-200">
+              <span className="text-sm font-medium text-gray-700">Section Visibility:</span>
+              <button
+                onClick={toggleVisibility}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${isSectionVisible ? 'bg-purple-600' : 'bg-gray-300'
+                  }`}
+              >
+                <span
+                  className={`${isSectionVisible ? 'translate-x-6' : 'translate-x-1'
+                    } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                />
+              </button>
+              <span className="text-xs text-gray-500 w-16">
+                {isSectionVisible ? 'Visible' : 'Hidden'}
+              </span>
+            </div>
+
+            <button
+              onClick={() => { resetForm(); setShowModal(true); }}
+              className="btn-primary flex items-center gap-2 px-6 py-3 shadow-lg hover:shadow-xl transition-all"
+            >
+              <Plus size={20} /> Create Event
+            </button>
+          </div>
         </div>
 
         {/* Stats Row */}

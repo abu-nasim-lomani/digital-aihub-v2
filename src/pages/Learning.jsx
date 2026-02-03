@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { learningAPI } from '../utils/api';
-import { BookOpen, FileText, Download, Eye, Search, Filter, ArrowRight, File, Award } from 'lucide-react';
+import { BookOpen, FileText, Download, Eye, Search, Filter, ArrowRight, File, Award, Calendar, Video, Users } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const Learning = () => {
@@ -59,6 +59,50 @@ const Learning = () => {
     return 'bg-gray-50 border-gray-100';
   };
 
+  const getFullUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    // Remove /api if present in base URL to get root
+    const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api').replace('/api', '');
+    return `${baseUrl}${url}`;
+  };
+
+  const handleDownload = async (doc) => {
+    try {
+      const fileUrl = getFullUrl(doc.fileUrl);
+      if (!fileUrl) return;
+
+      // Optimistic update
+      const updatedModules = modules.map(m =>
+        m.id === doc.id ? { ...m, downloads: (m.downloads || 0) + 1 } : m
+      );
+      setData(updatedModules);
+
+      // Call API
+      await learningAPI.incrementDownload(doc.id);
+
+      // Force download using blob
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Extract filename from path or title
+      const filename = doc.fileUrl.split('/').pop() || `${doc.title}.${doc.type}`;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback: Open in new tab
+      const fileUrl = getFullUrl(doc.fileUrl);
+      if (fileUrl) window.open(fileUrl, '_blank');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       {/* Hero Section (Original Design) */}
@@ -91,10 +135,10 @@ const Learning = () => {
         {/* Statistics Strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {[
-            { label: 'Total Resources', value: `${modules.length}+`, icon: FileText },
-            { label: 'Active Downloads', value: '15.2k', icon: Download },
-            { label: 'Avg. Rating', value: '4.8/5', icon: Eye },
-            { label: 'Updated', value: 'Today', icon: BookOpen }
+            { label: 'Number of Events', value: '4', icon: Calendar },
+            { label: 'Online Events', value: '0', icon: Video },
+            { label: 'Number of Trainees', value: '250+', icon: Users },
+            { label: 'Number of Modules', value: '3', icon: BookOpen }
           ].map((stat, idx) => (
             <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
               <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
@@ -154,10 +198,17 @@ const Learning = () => {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Preview">
+                    <button
+                      onClick={() => doc.fileUrl && window.open(getFullUrl(doc.fileUrl), '_blank')}
+                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Preview"
+                    >
                       <Eye size={18} />
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors">
+                    <button
+                      onClick={() => handleDownload(doc)}
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors"
+                    >
                       <span>Download</span>
                       <ArrowRight size={16} />
                     </button>

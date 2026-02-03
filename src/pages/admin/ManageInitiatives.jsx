@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { initiativesAPI } from '../../utils/api';
-import { Plus, Edit2, Trash2, Search, X, Save, Lightbulb, CheckCircle, Clock } from 'lucide-react';
+import { initiativesAPI, settingsAPI } from '../../utils/api';
+import { Plus, Edit2, Trash2, Search, X, Save, Lightbulb, CheckCircle, Clock, Eye, EyeOff } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const ManageInitiatives = () => {
@@ -10,6 +10,7 @@ const ManageInitiatives = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isSectionVisible, setIsSectionVisible] = useState(true);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -25,7 +26,29 @@ const ManageInitiatives = () => {
 
   useEffect(() => {
     fetchData();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await settingsAPI.get('initiative_visibility');
+      setIsSectionVisible(res.data.value);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  const toggleVisibility = async () => {
+    try {
+      const newValue = !isSectionVisible;
+      setIsSectionVisible(newValue); // Optimistic update
+      await settingsAPI.update('initiative_visibility', newValue);
+    } catch (error) {
+      console.error('Error updating setting:', error);
+      setIsSectionVisible(!isSectionVisible); // Revert on error
+      alert('Failed to update visibility setting');
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -115,7 +138,7 @@ const ManageInitiatives = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="bg-purple-100 p-2 rounded-lg">
                 <Lightbulb className="text-purple-600" size={24} />
@@ -125,10 +148,31 @@ const ManageInitiatives = () => {
                 <p className="text-sm text-gray-500">{initiatives.length} total initiatives</p>
               </div>
             </div>
-            <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-              <Plus size={20} />
-              Add Initiative
-            </button>
+
+            <div className="flex items-center gap-3">
+              {/* Visibility Toggle */}
+              <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg mr-2 border border-gray-200">
+                <span className="text-sm font-medium text-gray-700">Section Visibility:</span>
+                <button
+                  onClick={toggleVisibility}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${isSectionVisible ? 'bg-purple-600' : 'bg-gray-300'
+                    }`}
+                >
+                  <span
+                    className={`${isSectionVisible ? 'translate-x-6' : 'translate-x-1'
+                      } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                  />
+                </button>
+                <span className="text-xs text-gray-500 w-16">
+                  {isSectionVisible ? 'Visible' : 'Hidden'}
+                </span>
+              </div>
+
+              <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+                <Plus size={20} />
+                Add Initiative
+              </button>
+            </div>
           </div>
         </div>
       </div>

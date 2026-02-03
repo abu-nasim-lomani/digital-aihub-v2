@@ -51,7 +51,14 @@ const Signup = () => {
     try {
       const result = await signup(email, password);
 
-      if (result?.requiresEmailConfirmation) {
+      // Check if account requires admin approval
+      if (result?.requiresApproval) {
+        setSuccess(true);
+        // Don't auto-login, redirect to login page
+        setTimeout(() => {
+          navigate('/login');
+        }, 5000);
+      } else if (result?.requiresEmailConfirmation) {
         setSuccess(true);
         setTimeout(() => {
           navigate('/login');
@@ -128,8 +135,8 @@ const Signup = () => {
             <div className="p-4 bg-green-50 border border-green-100 rounded-xl flex items-start gap-3 text-green-700 animate-in zoom-in-95">
               <CheckCircle size={20} className="mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-bold">Success!</p>
-                <p className="text-sm mt-1">Check your email for confirmation.</p>
+                <p className="font-bold">Account Created!</p>
+                <p className="text-sm mt-1">Your account is pending admin approval. You will be able to login once approved.</p>
               </div>
             </div>
           )}

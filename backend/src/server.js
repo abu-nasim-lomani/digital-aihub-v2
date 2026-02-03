@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -15,8 +16,13 @@ import standardsRoutes from './routes/standards.routes.js';
 import teamRoutes from './routes/team.routes.js';
 import supportRequestsRoutes from './routes/support-requests.routes.js';
 import agentRoutes from './routes/agent.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
+import userRoutes from './routes/user.routes.js';
+import projectAssignmentRoutes from './routes/projectAssignment.routes.js';
+import partnerRoutes from './routes/partner.routes.js';
 
 const app = express();
+
 
 // CORS configuration - MUST be before other middleware
 // CORS configuration - MUST be before other middleware
@@ -56,8 +62,8 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Static files (uploads) - DISABLED FOR VERCEL (using Supabase)
-// app.use('/uploads', express.static(config.uploadDir));
+// Static files (uploads)
+app.use('/uploads', express.static('uploads'));
 
 // Routes
 import uploadRoutes from './routes/upload.routes.js';
@@ -72,6 +78,11 @@ app.use('/api/team', teamRoutes);
 app.use('/api/support-requests', supportRequestsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/agent', agentRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/project-assignments', projectAssignmentRoutes);
+app.use('/api/partners', partnerRoutes);
+
 
 // Health check
 app.get('/health', (req, res) => {

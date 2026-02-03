@@ -22,7 +22,12 @@ const ManageLearning = () => {
     status: 'draft'
   });
 
-  const categories = ['Policy Papers', 'Training Decks', 'Guidelines', 'Reports'];
+  // Dynamic Categories Logic
+  const dynamicCategories = Array.from(new Set([
+    'Policy Papers', 'Training Decks', 'Guidelines', 'Reports',
+    ...items.map(i => i.category || '').filter(Boolean)
+  ])).sort();
+
   const types = ['pdf', 'ppt', 'doc'];
 
   useEffect(() => {
@@ -60,7 +65,12 @@ const ManageLearning = () => {
         fileUrl: url,
         fileSize: sizeMB,
         // Auto-detect type from extension
-        type: file.name.split('.').pop().toLowerCase().includes('ppt') ? 'ppt' : 'pdf'
+        type: (() => {
+          const ext = file.name.split('.').pop().toLowerCase();
+          if (ext.includes('ppt')) return 'ppt';
+          if (ext.includes('doc')) return 'doc';
+          return 'pdf';
+        })()
       }));
 
     } catch (error) {
@@ -77,7 +87,8 @@ const ManageLearning = () => {
       if (formData.id) {
         await learningAPI.update(formData.id, formData);
       } else {
-        await learningAPI.create(formData);
+        const { id: _, ...createData } = formData;
+        await learningAPI.create(createData);
       }
       setShowModal(false);
       fetchData();
@@ -269,13 +280,20 @@ const ManageLearning = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                    <select
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                      value={formData.category}
-                      onChange={e => setFormData({ ...formData, category: e.target.value })}
-                    >
-                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        list="category-options"
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={formData.category}
+                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                        placeholder="Select or type new..."
+                      />
+                      <datalist id="category-options">
+                        {dynamicCategories.map(c => <option key={c} value={c} />)}
+                      </datalist>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
