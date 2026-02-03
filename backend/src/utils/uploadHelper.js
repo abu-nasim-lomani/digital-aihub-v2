@@ -4,7 +4,12 @@ import path from 'path';
 import config from '../config/env.js';
 
 // Initialize Supabase client
-const supabase = createClient(config.supabaseUrl, config.supabaseKey);
+let supabase;
+if (config.supabaseUrl && config.supabaseKey) {
+    supabase = createClient(config.supabaseUrl, config.supabaseKey);
+} else {
+    console.warn('⚠️ Supabase credentials missing in config. Uploads will fail until configured.');
+}
 
 // Use memory storage for multer so we can access the buffer
 const storage = multer.memoryStorage();
@@ -37,6 +42,10 @@ export const upload = multer({
  */
 export const uploadToSupabase = async (file, bucket = config.supabaseBucket, folder = 'general') => {
     try {
+        if (!supabase) {
+            throw new Error('Supabase client is not initialized. Check environment variables.');
+        }
+
         if (!file) {
             throw new Error('No file provided');
         }
