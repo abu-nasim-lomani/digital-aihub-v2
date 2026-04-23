@@ -220,7 +220,7 @@ const Navbar = () => {
               className="flex items-center gap-3 group"
             >
               <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/UNDP_logo.svg/1280px-UNDP_logo.svg.png"
+                src="https://logodix.com/logo/1062877.jpg"
                 alt="UNDP Logo"
                 className="h-8 md:h-10 w-auto transition-transform duration-300 group-hover:scale-110"
               />
