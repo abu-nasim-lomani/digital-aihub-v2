@@ -151,8 +151,8 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
                     <div className="relative z-10">
                         {mode === 'login' ? (
                             <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-xs">
-                                <p className="font-bold mb-1">Demo Access:</p>
-                                <div className="opacity-80">User: admin / Pass: admin123</div>
+                                <p className="font-bold mb-1"></p>
+                                <div className="opacity-80"></div>
                             </div>
                         ) : (
                             <div className="flex items-center gap-2 text-sm opacity-80 font-medium">
