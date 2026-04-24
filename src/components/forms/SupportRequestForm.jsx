@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
-import { supportRequestsAPI } from '../../utils/api';
+import { supportRequestsAPI, uploadFile } from '../../utils/api';
 import { Briefcase, X, CheckCircle, ChevronRight, Loader2, ArrowRight } from 'lucide-react';
 
 const SupportRequestForm = ({ isOpen, onClose, projects = [], currentUser, onSuccess }) => {
     const [submitting, setSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [attachmentFile, setAttachmentFile] = useState(null);
     const [formData, setFormData] = useState({
         title: '',
         projectId: '',
         supportType: '',
         documentUrl: '',
-        duration: '',
+        startDate: '',
+        endDate: '',
         impact: '',
-
     });
     const [error, setError] = useState('');
 
@@ -24,9 +25,12 @@ const SupportRequestForm = ({ isOpen, onClose, projects = [], currentUser, onSuc
                 title: '',
                 projectId: '',
                 supportType: '',
-                duration: '',
+                startDate: '',
+                endDate: '',
+                documentUrl: '',
                 impact: '',
             }));
+            setAttachmentFile(null);
             setSubmitSuccess(false);
             setError('');
         }
@@ -38,13 +42,26 @@ const SupportRequestForm = ({ isOpen, onClose, projects = [], currentUser, onSuc
         setError('');
 
         try {
+            let uploadedUrl = formData.documentUrl;
+            
+            if (attachmentFile) {
+                try {
+                    const uploadRes = await uploadFile(attachmentFile, 'support_requests');
+                    uploadedUrl = uploadRes.url;
+                } catch (uploadError) {
+                    console.error('File upload failed:', uploadError);
+                    setError('Failed to upload attachment. Please try again.');
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
             const submissionData = {
                 ...formData,
+                documentUrl: uploadedUrl,
                 projectId: formData.projectId || null,
                 status: 'pending'
             };
-
-
 
             await supportRequestsAPI.create(submissionData);
 
@@ -190,14 +207,27 @@ const SupportRequestForm = ({ isOpen, onClose, projects = [], currentUser, onSuc
                                 </div>
                             </div>
 
-                            {/* Duration Input */}
-                            <div className="space-y-2 group md:col-span-2">
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider group-focus-within:text-[#003359] transition-colors">Expected Timeline</label>
+                            {/* Start Date Input */}
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider group-focus-within:text-[#003359] transition-colors">Tentative Start Date *</label>
                                 <input
-                                    value={formData.duration}
-                                    onChange={e => setFormData({ ...formData, duration: e.target.value })}
-                                    className="w-full px-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[#003359]/20 focus:border-[#003359] transition-all text-sm font-medium outline-none"
-                                    placeholder="E.g. 3 Months, Q1 2024"
+                                    required
+                                    type="date"
+                                    value={formData.startDate}
+                                    onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                                    className="w-full px-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[#003359]/20 focus:border-[#003359] transition-all text-sm font-medium outline-none text-gray-500"
+                                />
+                            </div>
+
+                            {/* End Date Input */}
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider group-focus-within:text-[#003359] transition-colors">End Date *</label>
+                                <input
+                                    required
+                                    type="date"
+                                    value={formData.endDate}
+                                    onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                                    className="w-full px-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[#003359]/20 focus:border-[#003359] transition-all text-sm font-medium outline-none text-gray-500"
                                 />
                             </div>
                         </div>
@@ -213,6 +243,17 @@ const SupportRequestForm = ({ isOpen, onClose, projects = [], currentUser, onSuc
                                 className="w-full px-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[#003359]/20 focus:border-[#003359] transition-all text-sm font-medium outline-none resize-none leading-relaxed"
                                 placeholder="Describe your requirements, expected outcomes, and potential impact..."
                             />
+                        </div>
+
+                        {/* Relevant Attachment Input */}
+                        <div className="space-y-2 group">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider group-focus-within:text-[#003359] transition-colors">Relevant Attachment (Optional)</label>
+                            <input
+                                type="file"
+                                onChange={e => setAttachmentFile(e.target.files[0])}
+                                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[#003359]/20 focus:border-[#003359] transition-all text-sm font-medium outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#003359]/10 file:text-[#003359] hover:file:bg-[#003359]/20"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Upload any supporting document, image, or PDF.</p>
                         </div>
 
                         {/* Footer Actions */}
