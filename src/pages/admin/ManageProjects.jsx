@@ -55,12 +55,6 @@ const ManageProjects = () => {
     }
   };
 
-  useEffect(() => {
-    if (showReorderModal) {
-      fetchProjectOrder();
-    }
-  }, [showReorderModal, fetchProjectOrder]);
-
   const fetchProjectOrder = useCallback(async () => {
     try {
       const res = await settingsAPI.get('project_order');
@@ -76,6 +70,12 @@ const ManageProjects = () => {
       setProjectOrder(projects.map(p => p.id));
     }
   }, [projects]);
+
+  useEffect(() => {
+    if (showReorderModal) {
+      fetchProjectOrder();
+    }
+  }, [showReorderModal, fetchProjectOrder]);
 
   const handleMoveProject = (index, direction) => {
     if (
